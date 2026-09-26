@@ -1,0 +1,353 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Reportes Mensuales y Financieros | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Reportes Mensuales y Balances</h1>
+        <p class="text-muted mb-0 small">Consulta qué clientes pagaron en cada mes y el balance de ingresos versus gastos de <strong>{{ company.name }}</strong>.</p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'receipt_monthly_pdf' %}?month={{ selected_month }}&year={{ selected_year }}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-file-earmark-pdf-fill"></i>
+            <span>PDF Clientes Pagados ({{ month_name }})</span>
+        </a>
+        <a href="{% url 'expense_financial_pdf' %}?month={{ selected_month }}&year={{ selected_year }}" class="btn btn-dark d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-file-earmark-bar-graph-fill"></i>
+            <span>PDF Ingresos vs Gastos ({{ month_name }})</span>
+        </a>
+    </div>
+</div>
+
+<!-- Filtro de Mes y Año -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-sm-5 col-md-4">
+                <label class="form-label small fw-bold text-muted mb-1">Mes del Reporte</label>
+                <select name="month" class="form-select">
+                    {% for m_num, m_label in months %}
+                        <option value="{{ m_num }}" {% if m_num == selected_month %}selected{% endif %}>{{ m_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Año</label>
+                <select name="year" class="form-select">
+                    {% for y in years_range %}
+                        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-3 col-md-3">
+                <button type="submit" class="btn btn-outline-primary w-100 fw-semibold">
+                    <i class="bi bi-funnel me-1"></i> Consultar Periodo
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen de Totales del Periodo -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small fw-semibold text-uppercase">Ingresos Totales ({{ month_name }})</div>
+            <div class="h4 fw-bold text-success mt-1 mb-1">L {{ total_income_hnl|floatformat:2 }}</div>
+            <div class="small text-muted">En USD: <strong>${{ total_income_usd|floatformat:2 }}</strong> ({{ paid_receipts|length }} recibos{% if extra_incomes %} + {{ extra_incomes|length }} extra{% endif %})</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small fw-semibold text-uppercase">Gastos de Empresa ({{ month_name }})</div>
+            <div class="h4 fw-bold text-danger mt-1 mb-1">L {{ exp_comp_hnl|floatformat:2 }}</div>
+            <div class="small text-muted">En USD: <strong>${{ exp_comp_usd|floatformat:2 }}</strong> ({{ expense_company|length }} registros)</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small fw-semibold text-uppercase">Gastos Personales ({{ month_name }})</div>
+            <div class="h4 fw-bold text-warning-emphasis mt-1 mb-1">L {{ exp_pers_hnl|floatformat:2 }}</div>
+            <div class="small text-muted">En USD: <strong>${{ exp_pers_usd|floatformat:2 }}</strong> ({{ expense_personal|length }} registros)</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small fw-semibold text-uppercase">Balance Neto ({{ month_name }})</div>
+            <div class="h4 fw-bold {% if net_balance_hnl >= 0 %}text-primary{% else %}text-danger{% endif %} mt-1 mb-1">
+                L {{ net_balance_hnl|floatformat:2 }}
+            </div>
+            <div class="small text-muted">En USD: <strong>${{ net_balance_usd|floatformat:2 }}</strong></div>
+        </div>
+    </div>
+</div>
+
+<!-- Sección 1: Clientes que Pagaron vs Pendientes -->
+<div class="row g-4 mb-4">
+    <!-- Clientes que Pagaron -->
+    <div class="col-12 col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-success">
+                    <i class="bi bi-check-circle-fill me-2"></i>Recibos Emitidos en {{ month_name }} {{ selected_year }} ({{ paid_receipts|length }})
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if paid_receipts %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">N° Recibo</th>
+                                <th>Cliente</th>
+                                <th>Fecha Pago</th>
+                                <th>Monto USD</th>
+                                <th>Total HNL</th>
+                                <th class="text-end pe-3">PDF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in paid_receipts %}
+                            <tr>
+                                <td class="ps-3 fw-bold">
+                                    <a href="{% url 'receipt_detail' r.id %}" class="text-decoration-none">#{{ r.receipt_number }}</a>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">
+                                        {{ r.client_display_name }}
+                                        {% if r.is_extra_charge %}
+                                            <span class="badge bg-info-subtle text-info-emphasis ms-1">Monto Extra</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="small text-muted">{{ r.concept|truncatechars:35 }}</div>
+                                </td>
+                                <td class="small">{{ r.issue_date|date:"d/m/Y" }}</td>
+                                <td class="fw-semibold">${{ r.amount_usd|floatformat:2 }}</td>
+                                <td class="fw-bold text-success">L {{ r.amount_hnl|floatformat:2 }}</td>
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'receipt_pdf' r.id %}" target="_blank" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    No se registraron recibos para {{ month_name }} {{ selected_year }}.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Clientes Pendientes en ese Mes -->
+    <div class="col-12 col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-danger">
+                    <i class="bi bi-clock-history me-2"></i>Pendientes o con Saldo en {{ month_name }} ({{ pending_clients|length }})
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if pending_clients %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Cliente</th>
+                                <th>Cobro</th>
+                                <th>Saldo USD</th>
+                                <th class="text-end pe-3">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in pending_clients %}
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-semibold">{{ c.name }}</div>
+                                    {% if c.paid_period_usd > 0 %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">Abonó ${{ c.paid_period_usd|floatformat:2 }}</span>
+                                    {% else %}
+                                        <div class="small text-muted">{{ c.phone|default:"-" }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="small">
+                                    {% if c.payment_parts == 2 %}
+                                        Día {{ c.billing_day }} / {{ c.second_billing_day }}
+                                    {% else %}
+                                        Día {{ c.billing_day }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-danger">${{ c.remaining_period_usd|floatformat:2 }}</div>
+                                    {% if c.payment_parts == 2 %}
+                                        <div class="small text-muted">de ${{ c.monthly_fee_usd|floatformat:2 }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'receipt_create' %}?client_id={{ c.id }}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-receipt"></i> Cobrar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-success">
+                    <i class="bi bi-award fs-2 d-block mb-1"></i>
+                    ¡Todos los clientes activos tienen su pago registrado en este mes!
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sección 1.B: Ingresos Extra y de Empresas Externas (Fuera del Cobro Mensual) -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="card-title mb-0 fw-bold fs-6 text-primary">
+                <i class="bi bi-cash-coin me-2"></i>Ingresos Extra y de Empresas Externas ({{ month_name }} {{ selected_year }}) &bull; Total: L {{ extra_income_hnl|floatformat:2 }} HNL (${{ extra_income_usd|floatformat:2 }} USD)
+            </h5>
+        </div>
+        <a href="{% url 'extra_income_create' %}" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-plus-circle me-1"></i> Registrar Ingreso Extra / Externo
+        </a>
+    </div>
+    <div class="card-body p-0">
+        {% if extra_incomes %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-custom">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Fecha</th>
+                        <th>Empresa / Cliente</th>
+                        <th>Tipo de Ingreso</th>
+                        <th>Concepto</th>
+                        <th>Monto USD</th>
+                        <th class="text-end pe-4">Total HNL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ext in extra_incomes %}
+                    <tr>
+                        <td class="ps-4 small">{{ ext.income_date|date:"d/m/Y" }}</td>
+                        <td class="fw-bold">{{ ext.source_display_name }}</td>
+                        <td>
+                            {% if ext.source_type == 'registered' %}
+                                <span class="badge bg-success-subtle text-success-emphasis">Monto Extra (Cliente Registrado)</span>
+                            {% else %}
+                                <span class="badge bg-primary-subtle text-primary-emphasis">Empresa Externa (No Registrada)</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ext.concept }}</td>
+                        <td class="fw-semibold">${{ ext.amount_usd|floatformat:2 }}</td>
+                        <td class="text-end pe-4 fw-bold text-success">L {{ ext.amount_hnl|floatformat:2 }} HNL</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted small">
+            No se registraron ingresos extra ni de empresas externas en {{ month_name }} {{ selected_year }}.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sección 2: Bitácora de Gastos del Mes (Empresa vs Personales) -->
+<div class="row g-4">
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-danger">
+                    <i class="bi bi-building-dash me-2"></i>Gastos de Empresa ({{ month_name }} {{ selected_year }})
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if expense_company %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Fecha</th>
+                                <th>Concepto / Categoría</th>
+                                <th class="text-end pe-3">Monto HNL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in expense_company %}
+                            <tr>
+                                <td class="ps-3 small">{{ e.expense_date|date:"d/m/Y" }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ e.title }}</div>
+                                    <div class="small text-muted">{{ e.get_category_display }}</div>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="fw-bold text-danger">L {{ e.amount_hnl|floatformat:2 }}</div>
+                                    <div class="small text-muted">${{ e.amount_usd|floatformat:2 }} USD</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">Sin gastos de empresa en este mes.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-warning-emphasis">
+                    <i class="bi bi-person-dash me-2"></i>Gastos Personales ({{ month_name }} {{ selected_year }})
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if expense_personal %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Fecha</th>
+                                <th>Concepto / Categoría</th>
+                                <th class="text-end pe-3">Monto HNL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in expense_personal %}
+                            <tr>
+                                <td class="ps-3 small">{{ e.expense_date|date:"d/m/Y" }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ e.title }}</div>
+                                    <div class="small text-muted">{{ e.get_category_display }}</div>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="fw-bold text-warning-emphasis">L {{ e.amount_hnl|floatformat:2 }}</div>
+                                    <div class="small text-muted">${{ e.amount_usd|floatformat:2 }} USD</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">Sin gastos personales en este mes.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

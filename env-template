@@ -1,0 +1,8 @@
+SECRET_KEY=clave_secreta_aqui_12345
+DEBUG=True
+ALLOWED_HOSTS=127.0.0.1,localhost
+DATABASE_URL=postgres://usuario:psw@127.0.0.1:5432/nombre_base_de_datos
+LOG_FILE_PATH=django_logger.log
+DJANGO_APPS=apps_default_django
+LOCAL_APPS=apps.core,apps.employees,apps.clients,apps.receipts,apps.expenses
+THIRD_PARTY_APPS=rest_framework

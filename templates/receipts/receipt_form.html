@@ -1,0 +1,159 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Emitir Recibo | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'receipt_list' %}" class="text-decoration-none text-muted small">
+        <i class="bi bi-arrow-left me-1"></i> Volver a Recibos
+    </a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-1">
+        <h1 class="h3 fw-bold mb-0">Emitir Nuevo Recibo de Pago</h1>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'extra_income_create' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-cash-coin me-1"></i> Registrar Solo Ingreso (Extra / Externo)
+            </a>
+            <div class="badge bg-primary fs-5 px-3 py-2 shadow-sm">
+                <i class="bi bi-hash me-1"></i>Recibo N° {{ next_number }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-xl-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                        <i class="bi bi-person-check me-2"></i>1. Cliente y Periodo del Recibo
+                    </h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label fw-semibold">Seleccionar Cliente Registrado</label>
+                            {{ form.client }}
+                            <div class="form-text">Al elegir el cliente se carga automáticamente su monto correspondiente (completo o parte 1 / parte 2).</div>
+                            {% if form.client.errors %}<div class="text-danger small">{{ form.client.errors }}</div>{% endif %}
+                        </div>
+
+                        <!-- Opción de Monto Extra o Empresa Externa -->
+                        <div class="col-12">
+                            <div class="p-3 rounded-3 bg-light border">
+                                <div class="form-check mb-2">
+                                    {{ form.is_extra_charge }}
+                                    <label class="form-check-label fw-semibold text-dark" for="id_is_extra_charge">
+                                        {{ form.is_extra_charge.label }}
+                                    </label>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    Marca esta casilla si el recibo es por un trabajo o monto extra para que <strong>no se descuente</strong> del cobro mensual fijo del cliente.
+                                </div>
+                                <div class="mt-2 pt-2 border-top">
+                                    <label class="form-label small fw-semibold text-muted mb-1">{{ form.external_client_name.label }}</label>
+                                    {{ form.external_client_name }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta dinámica de estado de cuotas del cliente seleccionado -->
+                        <div class="col-12" id="clientPaymentPlanBanner" style="display: none;">
+                            <div class="alert alert-info mb-0 py-2 px-3 small d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div id="clientPlanText"></div>
+                                <div class="btn-group btn-group-sm" id="clientQuickAmounts"></div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Fecha de Emisión *</label>
+                            {{ form.issue_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Mes Correspondiente *</label>
+                            {{ form.billing_month }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Año *</label>
+                            {{ form.billing_year }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Concepto / Descripción del Recibo *</label>
+                            {{ form.concept }}
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                        <i class="bi bi-currency-exchange me-2"></i>2. Cálculo del Total en Lempiras (L HNL)
+                    </h5>
+                    <div class="row g-3 mb-4 bg-light p-3 rounded-3 border">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-primary">Monto Base ($ USD) *</label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold">$</span>
+                                {{ form.amount_usd }}
+                            </div>
+                            <div class="form-text small">Base para calcular el recibo.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Tasa de Cambio (USD -> HNL) *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">L</span>
+                                {{ form.exchange_rate }}
+                            </div>
+                            <div class="form-text small">Tasa diaria o editable manualmente.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-success">Total en Recibo (L HNL)</label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold bg-success text-white">L</span>
+                                {{ form.amount_hnl }}
+                            </div>
+                            <div class="form-text small">Único monto que se mostrará en el recibo.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Observaciones Adicionales (Opcional)</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% url 'receipt_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-primary btn-lg px-4 fw-bold shadow-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Emitir Recibo #{{ next_number }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral Informativo -->
+    <div class="col-12 col-xl-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-dark text-white p-4">
+            <h5 class="fw-bold text-info mb-3"><i class="bi bi-info-circle me-2"></i>Resumen de Emisión</h5>
+            <div class="mb-3 pb-3 border-bottom border-secondary">
+                <div class="text-secondary small">Empresa Emisora:</div>
+                <div class="fw-bold fs-5">{{ company.name }}</div>
+            </div>
+            <div class="mb-3 pb-3 border-bottom border-secondary">
+                <div class="text-secondary small">Correlativo Automático:</div>
+                <div class="fw-bold fs-4 text-warning">#{{ next_number }}</div>
+                <div class="small text-light opacity-75">Configurable en Ajustes de Empresa</div>
+            </div>
+            <div class="mb-3">
+                <div class="text-secondary small">Total que saldrá en el Recibo:</div>
+                <div class="fw-bold fs-3 text-success" id="liveHnlPreview">
+                    {% if form.initial.amount_hnl %}L {{ form.initial.amount_hnl }}{% else %}L 0.00{% endif %}
+                </div>
+            </div>
+            <div class="alert bg-secondary bg-opacity-25 border-0 text-light small mb-0">
+                <i class="bi bi-file-earmark-check text-info me-1"></i>
+                El recibo se emite mostrando <strong>únicamente el total en Lempiras (HNL)</strong>, sin método de pago ni firmas. Una vez que el cliente realice el pago, podrás subir y ver su <strong>comprobante</strong> desde el recibo.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

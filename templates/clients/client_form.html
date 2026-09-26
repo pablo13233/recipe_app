@@ -1,0 +1,144 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}{{ title }} | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'client_list' %}" class="text-decoration-none text-muted small">
+        <i class="bi bi-arrow-left me-1"></i> Volver a Clientes
+    </a>
+    <h1 class="h3 fw-bold mt-1">{{ title }}</h1>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4" style="max-width: 860px;">
+    <div class="card-body p-4">
+        <form method="post">
+            {% csrf_token %}
+
+            <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-person-vcard me-2"></i>Datos Básicos del Cliente
+            </h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">Nombre Completo del Cliente *</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">DNI / RTN <span class="text-muted fw-normal">(Opcional)</span></label>
+                    {{ form.tax_id }}
+                    <div class="form-text small">Solo para control interno (no sale en el recibo).</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Teléfono / WhatsApp <span class="text-muted fw-normal">(Opcional)</span></label>
+                    {{ form.phone }}
+                    <div class="form-text small">Útil para enviar recordatorios de cobro por WhatsApp.</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Correo Electrónico <span class="text-muted fw-normal">(Opcional)</span></label>
+                    {{ form.email }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Dirección <span class="text-muted fw-normal">(Opcional)</span></label>
+                    {{ form.address }}
+                </div>
+            </div>
+
+            <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-currency-dollar me-2"></i>Condiciones y Fechas de Cobro Mensual
+            </h5>
+            <div class="row g-3 mb-3">
+                <div class="col-md-5">
+                    <label class="form-label fw-bold text-primary">Cobro Mensual Total ($ USD) *</label>
+                    <div class="input-group">
+                        <span class="input-group-text fw-bold">$</span>
+                        {{ form.monthly_fee_usd }}
+                    </div>
+                    <div class="form-text">Monto total que el cliente paga al mes en Dólares.</div>
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label fw-bold">¿Cómo realiza el pago mensual? *</label>
+                    {{ form.payment_parts }}
+                    <div class="form-text">Puedes elegir 1 solo cobro al mes o dividirlo en 2 fechas (mitad y mitad, o la cantidad que acuerden).</div>
+                </div>
+            </div>
+
+            <!-- Bloque de Fechas y Partes de Pago -->
+            <div class="bg-light border rounded-3 p-3 mb-4">
+                <div class="row g-3">
+                    <!-- 1er Cobro (Siempre visible) -->
+                    <div class="col-md-6" id="firstPaymentCol">
+                        <div class="p-3 bg-white rounded-3 border h-100">
+                            <div class="fw-bold text-primary mb-2" id="firstPaymentTitle">
+                                <i class="bi bi-calendar-check me-1"></i>Fecha de Cobro Mensual
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold" id="labelFirstDay">Día de Cobro en el Mes (1 - 31) *</label>
+                                {{ form.billing_day }}
+                            </div>
+                            <div id="firstPaymentAmountWrapper" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-semibold mb-0">Monto del 1er Pago ($ USD)</label>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnSplitHalf">
+                                        Dividir 50% / 50%
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.first_payment_usd }}
+                                </div>
+                                <div class="form-text small">Ej: de $600 puede pagar $300 o cualquier monto X.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2do Cobro (Visible cuando elige 2 partes) -->
+                    <div class="col-md-6" id="secondPaymentCol" style="display: none;">
+                        <div class="p-3 bg-white rounded-3 border border-primary border-opacity-50 h-100">
+                            <div class="fw-bold text-primary mb-2">
+                                <i class="bi bi-calendar2-Plus me-1"></i>2da Parte del Pago Mensual
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Día del 2do Cobro en el Mes (1 - 31) *</label>
+                                {{ form.second_billing_day }}
+                            </div>
+                            <div>
+                                <label class="form-label small fw-semibold mb-1">Monto del 2do Pago ($ USD)</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.second_payment_usd }}
+                                </div>
+                                <div class="form-text small">Se calcula automáticamente con el resto del mes, o puedes ajustarlo.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">Concepto Predeterminado de Recibo *</label>
+                    {{ form.default_concept }}
+                </div>
+                <div class="col-md-4 d-flex align-items-center">
+                    <div class="form-check mt-4">
+                        {{ form.is_active }}
+                        <label class="form-check-label fw-semibold">Cliente Activo</label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Notas u Observaciones</label>
+                    {{ form.notes }}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                <a href="{% url 'client_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                    <i class="bi bi-check-lg me-1"></i> Guardar Cliente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

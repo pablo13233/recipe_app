@@ -1,0 +1,1 @@
+# apps.receipts.migrations package

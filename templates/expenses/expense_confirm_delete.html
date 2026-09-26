@@ -1,0 +1,22 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Eliminar Gasto | RecipeApp{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm rounded-4 mx-auto my-5" style="max-width: 500px;">
+    <div class="card-body p-4 text-center">
+        <div class="text-danger mb-3">
+            <i class="bi bi-trash3 display-3"></i>
+        </div>
+        <h4 class="fw-bold mb-2">¿Eliminar este gasto de la bitácora?</h4>
+        <p class="text-muted mb-4">
+            Estás por eliminar el registro <strong>"{{ expense.title }}"</strong> por valor de <strong>L {{ expense.amount_hnl|floatformat:2 }} (${{ expense.amount_usd|floatformat:2 }} USD)</strong>.
+        </p>
+        <form method="post" class="d-flex justify-content-center gap-2">
+            {% csrf_token %}
+            <a href="{% url 'expense_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+            <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Eliminar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

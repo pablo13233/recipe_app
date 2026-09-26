@@ -1,0 +1,65 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Iniciar Sesión | RecipeApp{% endblock %}
+
+{% block root_content %}
+<div class="min-vh-100 d-flex flex-column justify-content-center align-items-center px-3 py-5" style="background: radial-gradient(circle at top, #1e293b 0%, #090d16 100%);">
+    <div class="card shadow-lg border border-secondary border-opacity-25 rounded-4 w-100" style="max-width: 440px; background-color: #111827;">
+        <div class="card-body p-4 p-md-5">
+            <div class="text-center mb-4">
+                <a href="{% url 'landing' %}" class="d-inline-flex align-items-center gap-2 text-decoration-none text-light mb-2">
+                    <i class="bi bi-receipt-cutoff text-info fs-1"></i>
+                    <span class="fs-2 fw-bold text-white">RecipeApp</span>
+                </a>
+                <h2 class="fs-6 text-secondary fw-normal">Ingresa tus credenciales para acceder al sistema</h2>
+            </div>
+
+            <!-- Django Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'danger' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_username" class="form-label fw-semibold text-light">Usuario:</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary"><i class="bi bi-person"></i></span>
+                        <input type="text" name="username" class="form-control form-control-lg fs-6 bg-dark text-light border-secondary border-opacity-50" id="id_username" placeholder="Tu nombre de usuario" required autofocus>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="id_password" class="form-label fw-semibold text-light mb-0">Contraseña:</label>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-50 text-secondary"><i class="bi bi-lock"></i></span>
+                        <input type="password" name="password" class="form-control form-control-lg fs-6 bg-dark text-light border-secondary border-opacity-50" id="id_password" placeholder="Tu contraseña" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 mb-3">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <span>Entrar al Sistema</span>
+                </button>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'landing' %}" class="text-decoration-none text-secondary small">
+                        <i class="bi bi-arrow-left me-1"></i> Regresar a la página de información
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="text-center text-secondary small mt-4">
+        RecipeApp &copy; 2026 - Control de Recibos y Finanzas
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Anular Recibo #{{ receipt.receipt_number }} | RecipeApp{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm rounded-4 mx-auto my-5" style="max-width: 520px;">
+    <div class="card-body p-4 text-center">
+        <div class="text-warning mb-3">
+            <i class="bi bi-exclamation-octagon display-3"></i>
+        </div>
+        <h4 class="fw-bold mb-2">¿Anular el Recibo #{{ receipt.receipt_number }}?</h4>
+        <p class="text-muted mb-4">
+            El recibo emitido a <strong>{{ receipt.client_display_name }}</strong> por <strong>L {{ receipt.amount_hnl|floatformat:"2u" }} HNL</strong> quedará marcado como <strong>ANULADO</strong> y no sumará a los ingresos del mes.
+        </p>
+        <form method="post" class="d-flex justify-content-center gap-2">
+            {% csrf_token %}
+            <a href="{% url 'receipt_detail' receipt.id %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+            <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Anular Recibo</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

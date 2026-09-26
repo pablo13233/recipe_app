@@ -1,0 +1,1 @@
+# apps.expenses.migrations package

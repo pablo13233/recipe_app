@@ -1,0 +1,188 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}{{ title }} | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-8">
+        <div class="mb-3">
+            <a href="{% url 'extra_income_list' %}" class="text-decoration-none text-muted small">
+                <i class="bi bi-arrow-left me-1"></i> Volver a Ingresos Extra y Externos
+            </a>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-bottom py-3">
+                <h4 class="card-title mb-0 fw-bold">
+                    <i class="bi bi-cash-coin text-success me-2"></i>{{ title }}
+                </h4>
+                <p class="text-muted small mb-0 mt-1">
+                    Registra ingresos de <strong>empresas no registradas</strong> (solo como bitácora de ingreso) o <strong>montos adicionales fuera del cobro mensual</strong> para clientes ya registrados.
+                </p>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <!-- Selector de Tipo de Origen -->
+                    <div class="p-3 rounded-3 bg-light border mb-4">
+                        <label class="form-label fw-bold text-primary mb-2">
+                            <i class="bi bi-diagram-2 me-1"></i>1. ¿De quién proviene este ingreso?
+                        </label>
+                        <div class="mb-3">
+                            {{ form.source_type }}
+                        </div>
+
+                        <!-- Bloque A: Empresa Externa (No registrada) -->
+                        <div id="externalSourceBlock">
+                            <label class="form-label fw-semibold">{{ form.external_company_name.label }}</label>
+                            {{ form.external_company_name }}
+                            {% if form.external_company_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.external_company_name.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>Escribe el nombre de la empresa o persona externa. No necesitas registrarla en el directorio de clientes mensuales.
+                            </div>
+                        </div>
+
+                        <!-- Bloque B: Empresa / Cliente Registrado (Monto Extra) -->
+                        <div id="registeredSourceBlock" style="display: none;">
+                            <label class="form-label fw-semibold">{{ form.client.label }}</label>
+                            {{ form.client }}
+                            {% if form.client.errors %}
+                                <div class="text-danger small mt-1">{{ form.client.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text text-success-emphasis">
+                                <i class="bi bi-check2-circle me-1"></i>Este monto se sumará a los ingresos de tu empresa, pero <strong>NO afectará ni descontará</strong> la cuota mensual fija de este cliente.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detalle del Ingreso -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">{{ form.concept.label }}</label>
+                            {{ form.concept }}
+                            {% if form.concept.errors %}<div class="text-danger small">{{ form.concept.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">{{ form.income_date.label }}</label>
+                            {{ form.income_date }}
+                            {% if form.income_date.errors %}<div class="text-danger small">{{ form.income_date.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Valores y Conversión -->
+                    <div class="p-3 rounded-3 border border-success border-opacity-25 bg-success bg-opacity-10 mb-4">
+                        <h6 class="fw-bold text-success-emphasis mb-3">
+                            <i class="bi bi-calculator me-1"></i>2. Monto del Ingreso y Conversión
+                        </h6>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">{{ form.currency.label }}</label>
+                                {{ form.currency }}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">{{ form.amount.label }}</label>
+                                {{ form.amount }}
+                                {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">{{ form.exchange_rate.label }}</label>
+                                {{ form.exchange_rate }}
+                                {% if form.exchange_rate.errors %}<div class="text-danger small">{{ form.exchange_rate.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-2 border-top border-success border-opacity-25 d-flex justify-content-between align-items-center small">
+                            <span class="text-muted">Vista previa de conversión automática:</span>
+                            <span class="fw-bold fs-6 text-success-emphasis" id="conversionPreview">L 0.00 HNL ($0.00 USD)</span>
+                        </div>
+                    </div>
+
+                    <!-- Comprobante y Notas -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">{{ form.payment_proof.label }}</label>
+                            {{ form.payment_proof }}
+                            {% if extra_inc and extra_inc.payment_proof %}
+                                <div class="small mt-1">
+                                    Archivo actual: <a href="{{ extra_inc.payment_proof.url }}" target="_blank">Ver comprobante adjunto</a>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">{{ form.payment_reference.label }}</label>
+                            {{ form.payment_reference }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">{{ form.notes.label }}</label>
+                            {{ form.notes }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'extra_income_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-success btn-lg px-4 fw-bold shadow-sm">
+                            <i class="bi bi-check2-circle me-1"></i> Guardar Registro de Ingreso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sourceSelect = document.getElementById('id_source_type');
+    const externalBlock = document.getElementById('externalSourceBlock');
+    const registeredBlock = document.getElementById('registeredSourceBlock');
+
+    const currencySelect = document.getElementById('id_extra_currency');
+    const amountInput = document.getElementById('id_extra_amount');
+    const rateInput = document.getElementById('id_extra_rate');
+    const previewEl = document.getElementById('conversionPreview');
+
+    function toggleSourceBlocks() {
+        if (!sourceSelect) return;
+        if (sourceSelect.value === 'registered') {
+            externalBlock.style.display = 'none';
+            registeredBlock.style.display = 'block';
+        } else {
+            externalBlock.style.display = 'block';
+            registeredBlock.style.display = 'none';
+        }
+    }
+
+    function updatePreview() {
+        const amount = parseFloat(amountInput.value) || 0;
+        const rate = parseFloat(rateInput.value) || 24.75;
+        const curr = currencySelect.value;
+
+        let usd = 0;
+        let hnl = 0;
+        if (curr === 'USD') {
+            usd = amount;
+            hnl = amount * rate;
+        } else {
+            hnl = amount;
+            usd = rate > 0 ? (amount / rate) : 0;
+        }
+        previewEl.textContent = `L ${hnl.toFixed(2)} HNL ($${usd.toFixed(2)} USD)`;
+    }
+
+    if (sourceSelect) {
+        sourceSelect.addEventListener('change', toggleSourceBlocks);
+        toggleSourceBlocks();
+    }
+    if (currencySelect) currencySelect.addEventListener('change', updatePreview);
+    if (amountInput) amountInput.addEventListener('input', updatePreview);
+    if (rateInput) rateInput.addEventListener('input', updatePreview);
+    updatePreview();
+});
+</script>
+{% endblock %}

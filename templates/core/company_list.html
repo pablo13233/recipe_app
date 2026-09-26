@@ -1,0 +1,83 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Empresas | RecipeApp{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Empresas Registradas</h1>
+        <p class="text-muted mb-0 small">Administra tus empresas, su numeración correlativa de recibos y su configuración fiscal.</p>
+    </div>
+    <a href="{% url 'company_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-plus-lg"></i>
+        <span>Nueva Empresa</span>
+    </a>
+</div>
+
+<div class="row g-4">
+    {% for comp in companies %}
+    <div class="col-12 col-md-6 col-xl-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 {% if comp.id == active_company.id %}border border-2 border-primary{% endif %}">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                                <i class="bi bi-buildings"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-0">{{ comp.name }}</h5>
+                                {% if comp.legal_name %}
+                                    <div class="text-muted small">{{ comp.legal_name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if comp.id == active_company.id %}
+                            <span class="badge bg-primary">Empresa Activa</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="small text-muted mb-3">
+                        {% if comp.tax_id %}<div><i class="bi bi-card-heading me-1"></i> <strong>RTN:</strong> {{ comp.tax_id }}</div>{% endif %}
+                        {% if comp.phone %}<div><i class="bi bi-telephone me-1"></i> {{ comp.phone }}</div>{% endif %}
+                        {% if comp.email %}<div><i class="bi bi-envelope me-1"></i> {{ comp.email }}</div>{% endif %}
+                        {% if comp.address %}<div><i class="bi bi-geo-alt me-1"></i> {{ comp.address|truncatechars:50 }}</div>{% endif %}
+                    </div>
+
+                    <div class="bg-light rounded-3 p-3 mb-3 small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Próximo Recibo:</span>
+                            <span class="fw-bold">#{{ comp.get_next_receipt_number_formatted }} (inicia en {{ comp.receipt_start_number }})</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Tasa Base USD:</span>
+                            <span class="fw-bold text-success">L {{ comp.default_exchange_rate|floatformat:4 }} HNL</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 pt-2 border-top">
+                    {% if comp.id != active_company.id %}
+                    <a href="{% url 'switch_company' comp.id %}" class="btn btn-sm btn-primary flex-grow-1">
+                        <i class="bi bi-check2-circle me-1"></i> Seleccionar
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'company_edit' comp.id %}" class="btn btn-sm btn-outline-secondary flex-grow-1">
+                        <i class="bi bi-gear me-1"></i> Configurar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+            <p class="text-muted mb-3">No hay empresas registradas aún.</p>
+            <div>
+                <a href="{% url 'company_create' %}" class="btn btn-primary">Registrar Primera Empresa</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

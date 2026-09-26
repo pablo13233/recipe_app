@@ -1,0 +1,89 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}{{ title }} | RecipeApp{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'employee_list' %}" class="text-decoration-none text-muted small">
+        <i class="bi bi-arrow-left me-1"></i> Volver a Usuarios
+    </a>
+    <h1 class="h3 fw-bold mt-1">{{ title }}</h1>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4" style="max-width: 720px;">
+    <div class="card-body p-4">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if membership %}
+                <!-- Edición de membresía existente -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Usuario:</label>
+                    <input type="text" class="form-control" value="{{ membership.user.username }} ({{ membership.user.get_full_name }})" disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Empresa:</label>
+                    {{ form.company }}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Rol / Permisos:</label>
+                    {{ form.role }}
+                </div>
+                <div class="form-check mb-4">
+                    {{ form.is_default }}
+                    <label class="form-check-label">Empresa predeterminada para este usuario</label>
+                </div>
+            {% else %}
+                <!-- Creación de nuevo usuario -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Nombre de Usuario *</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Contraseña *</label>
+                        {{ form.password }}
+                        {% if form.password.errors %}<div class="text-danger small">{{ form.password.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Nombres</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Apellidos</label>
+                        {{ form.last_name }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Correo Electrónico</label>
+                        {{ form.email }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Teléfono</label>
+                        {{ form.phone }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Cargo / Puesto</label>
+                        {{ form.job_title }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Empresa Asignada *</label>
+                        {{ form.company }}
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Rol en la Empresa *</label>
+                        {{ form.role }}
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                <a href="{% url 'employee_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                    <i class="bi bi-check-lg me-1"></i> Guardar Usuario
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

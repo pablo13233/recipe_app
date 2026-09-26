@@ -1,0 +1,245 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Ingresos Extra y Empresas Externas | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Ingresos Extra y de Empresas Externas</h1>
+        <p class="text-muted mb-0 small">
+            Registra ingresos de <strong>empresas no registradas</strong> (solo como registro de ingreso) y <strong>montos extra fuera del cobro mensual</strong> de tus clientes registrados en <strong>{{ company.name }}</strong>.
+        </p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'extra_income_create' %}?source=external" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-building-add"></i>
+            <span>Ingreso de Empresa Externa</span>
+        </a>
+        <a href="{% url 'extra_income_create' %}?source=registered" class="btn btn-success d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-plus-circle-dotted"></i>
+            <span>Monto Extra (Cliente Registrado)</span>
+        </a>
+    </div>
+</div>
+
+<!-- Tarjetas de Resumen -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-muted small fw-semibold text-uppercase">Empresas Externas (No Registradas)</div>
+                    <div class="h4 fw-bold text-primary mt-1 mb-0">L {{ ext_hnl|floatformat:"2u" }} HNL</div>
+                    <div class="small text-muted mt-1">Equivalente: <strong>${{ ext_usd|floatformat:"2u" }} USD</strong></div>
+                </div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-building-up"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-muted small fw-semibold text-uppercase">Montos Extra (Clientes Registrados)</div>
+                    <div class="h4 fw-bold text-success mt-1 mb-0">L {{ reg_hnl|floatformat:"2u" }} HNL</div>
+                    <div class="small text-muted mt-1">Equivalente: <strong>${{ reg_usd|floatformat:"2u" }} USD</strong> (Fuera de cuota mensual)</div>
+                </div>
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card h-100 border-success border-opacity-25 bg-success bg-opacity-10">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-success-emphasis small fw-bold text-uppercase">Total Ingresos Extra / Externos</div>
+                    <div class="h4 fw-bold text-success mt-1 mb-0">L {{ total_hnl|floatformat:"2u" }} HNL</div>
+                    <div class="small text-success-emphasis mt-1">Total USD: <strong>${{ total_usd|floatformat:"2u" }} USD</strong> ({{ extra_incomes|length }} registros)</div>
+                </div>
+                <div class="stat-icon bg-white text-success shadow-sm">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Empresa, cliente, concepto..." value="{{ search_q }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Origen del Ingreso</label>
+                <select name="source" class="form-select form-select-sm">
+                    <option value="all" {% if source_filter == 'all' %}selected{% endif %}>Todos los orígenes</option>
+                    <option value="external" {% if source_filter == 'external' %}selected{% endif %}>Solo Empresas Externas (No registradas)</option>
+                    <option value="registered" {% if source_filter == 'registered' %}selected{% endif %}>Solo Montos Extra (Clientes registrados)</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-muted mb-1">Mes</label>
+                <select name="month" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for m_num, m_name in months %}
+                        <option value="{{ m_num }}" {% if selected_month == m_num %}selected{% endif %}>{{ m_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-muted mb-1">Año</label>
+                <select name="year" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary flex-grow-1">Filtrar</button>
+                <a href="{% url 'extra_income_list' %}" class="btn btn-sm btn-outline-secondary" title="Limpiar"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Ingresos Extra y Externos -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        {% if extra_incomes %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-custom">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Fecha</th>
+                        <th>Empresa / Cliente</th>
+                        <th>Tipo de Registro</th>
+                        <th>Concepto / Detalle</th>
+                        <th>Total (L HNL)</th>
+                        <th>Comprobante</th>
+                        <th class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in extra_incomes %}
+                    <tr>
+                        <td class="ps-4 small text-muted fw-semibold">{{ item.income_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ item.source_display_name }}</div>
+                            {% if item.payment_reference %}
+                                <div class="small text-muted">Ref: {{ item.payment_reference }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.source_type == 'registered' %}
+                                <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">
+                                    <i class="bi bi-plus-circle me-1"></i>Monto Extra (Fuera de cobro mensual)
+                                </span>
+                            {% else %}
+                                <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">
+                                    <i class="bi bi-building me-1"></i>Empresa Externa (No registrada)
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ item.concept }}</div>
+                            {% if item.notes %}
+                                <div class="small text-muted text-truncate" style="max-width: 240px;">{{ item.notes }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold text-success fs-6">L {{ item.amount_hnl|floatformat:"2u" }} HNL</div>
+                            <div class="small text-muted">${{ item.amount_usd|floatformat:"2u" }} USD</div>
+                        </td>
+                        <td>
+                            {% if item.payment_proof %}
+                                <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalExtraProof{{ item.id }}">
+                                    <i class="bi bi-eye-fill"></i>
+                                    <span>Ver Comprobante</span>
+                                </button>
+                            {% else %}
+                                <span class="text-muted small">Sin adjunto</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'extra_income_edit' item.id %}" class="btn btn-outline-secondary" title="Editar Registro">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'extra_income_delete' item.id %}" class="btn btn-outline-danger" title="Eliminar Registro">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modales para ver comprobantes -->
+        {% for item in extra_incomes %}
+            {% if item.payment_proof %}
+            <div class="modal fade" id="modalExtraProof{{ item.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4 border-0 shadow">
+                        <div class="modal-header">
+                            <div>
+                                <h5 class="modal-title fw-bold">
+                                    <i class="bi bi-patch-check-fill text-success me-2"></i>Comprobante: {{ item.source_display_name }}
+                                </h5>
+                                <div class="small text-muted">
+                                    Concepto: <strong>{{ item.concept }}</strong> &bull; Total: <strong>L {{ item.amount_hnl|floatformat:"2u" }} HNL</strong>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body text-center bg-light p-3">
+                            {% if item.is_proof_image %}
+                                <img src="{{ item.payment_proof.url }}" alt="Comprobante {{ item.source_display_name }}" class="img-fluid rounded-3 shadow-sm border" style="max-height: 65vh; object-fit: contain;">
+                            {% else %}
+                                <div class="py-4">
+                                    <i class="bi bi-file-earmark-pdf text-danger display-1 d-block mb-3"></i>
+                                    <a href="{{ item.payment_proof.url }}" target="_blank" class="btn btn-primary">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i> Abrir Documento
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer">
+                            <a href="{{ item.payment_proof.url }}" target="_blank" download class="btn btn-outline-primary">
+                                <i class="bi bi-download me-1"></i> Descargar Archivo
+                            </a>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-cash-coin display-4 d-block mb-2 text-secondary"></i>
+            <p class="mb-3">No hay ingresos extra ni de empresas externas registrados con estos filtros.</p>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{% url 'extra_income_create' %}?source=external" class="btn btn-primary">
+                    <i class="bi bi-building-add me-1"></i> Registrar Ingreso de Empresa Externa
+                </a>
+                <a href="{% url 'extra_income_create' %}?source=registered" class="btn btn-outline-success">
+                    <i class="bi bi-plus-circle me-1"></i> Registrar Monto Extra a Cliente
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Clientes | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Directorio de Clientes</h1>
+        <p class="text-muted mb-0 small">Gestiona los clientes de <strong>{{ company.name }}</strong>, su cuota mensual en dólares y sus fechas de cobro (1 o 2 pagos al mes).</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'extra_income_create' %}?source=external" class="btn btn-outline-success d-flex align-items-center gap-2">
+            <i class="bi bi-building-add"></i>
+            <span>Ingreso de Empresa Externa</span>
+        </a>
+        <a href="{% url 'client_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-person-plus"></i>
+            <span>Nuevo Cliente</span>
+        </a>
+    </div>
+</div>
+
+<!-- Buscador y Filtros -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, teléfono o correo..." value="{{ query }}">
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <select name="status" class="form-select">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Todos los Clientes ({{ total_clients }})</option>
+                    <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Pagado completo este mes</option>
+                    <option value="unpaid" {% if status_filter == 'unpaid' %}selected{% endif %}>Con pago o saldo pendiente</option>
+                    <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Cobro Vencido</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary flex-grow-1">Filtrar</button>
+                {% if query or status_filter != 'all' %}
+                <a href="{% url 'client_list' %}" class="btn btn-outline-secondary">Limpiar</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Clientes -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        {% if clients_data %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-custom">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Cliente / Dirección</th>
+                        <th>Contacto</th>
+                        <th>Cuota Mensual Total</th>
+                        <th>Modalidad / Fechas de Cobro</th>
+                        <th>Estado Mes Actual</th>
+                        <th class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in clients_data %}
+                    <tr class="{% if not item.client.is_active %}table-secondary opacity-75{% endif %}">
+                        <td class="ps-4">
+                            <div class="fw-bold">{{ item.client.name }}</div>
+                            {% if item.client.address %}<div class="small text-muted text-truncate" style="max-width: 240px;"><i class="bi bi-geo-alt me-1"></i>{{ item.client.address }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if item.client.phone %}<div><i class="bi bi-telephone me-1 text-muted"></i>{{ item.client.phone }}</div>{% else %}<span class="text-muted small">-</span>{% endif %}
+                            {% if item.client.email %}<div class="small text-muted"><i class="bi bi-envelope me-1"></i>{{ item.client.email }}</div>{% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-bold text-primary fs-6">${{ item.client.monthly_fee_usd|floatformat:2 }} USD</div>
+                            <div class="small text-muted">~L {{ item.approx_hnl|floatformat:2 }} HNL</div>
+                        </td>
+                        <td>
+                            {% if item.client.payment_parts == 2 %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1">En 2 partes</span>
+                                <div class="small text-muted">
+                                    1er: <strong>Día {{ item.client.billing_day }}</strong> (${{ item.client.first_payment_usd|floatformat:2 }})<br>
+                                    2do: <strong>Día {{ item.client.second_billing_day }}</strong> (${{ item.client.second_payment_usd|floatformat:2 }})
+                                </div>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">1 pago: Día {{ item.client.billing_day }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not item.client.is_active %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% elif item.status_info.status == 'paid' %}
+                                <span class="badge badge-paid"><i class="bi bi-check-lg me-1"></i>Pagado Completo (${{ item.status_info.paid_usd|floatformat:2 }})</span>
+                            {% else %}
+                                {% if item.status_info.is_partial %}
+                                    <div class="mb-1">
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                            Abonó ${{ item.status_info.paid_usd|floatformat:2 }} &bull; Resta ${{ item.status_info.remaining_usd|floatformat:2 }}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                                {% if item.status_info.status == 'overdue' %}
+                                    <span class="badge badge-overdue">{{ item.status_info.label }}</span>
+                                {% elif item.status_info.status == 'due_today' %}
+                                    <span class="badge badge-due-today">{{ item.status_info.label }}</span>
+                                {% else %}
+                                    <span class="badge bg-info-subtle text-info-emphasis">{{ item.status_info.label }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group btn-group-sm">
+                                {% if item.client.is_active and item.status_info.status != 'paid' %}
+                                <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-primary" title="Emitir Recibo de Cobro Mensual">
+                                    <i class="bi bi-receipt"></i> {% if item.status_info.is_partial %}Cobrar 2do{% else %}Cobrar{% endif %}
+                                </a>
+                                {% if item.whatsapp_url %}
+                                <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success" title="Recordatorio por WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                                {% endif %}
+                                {% endif %}
+                                <a href="{% url 'extra_income_create' %}?client_id={{ item.client.id }}&source=registered" class="btn btn-outline-success" title="Registrar Monto Extra (Fuera del cobro mensual)">
+                                    <i class="bi bi-cash-coin"></i> + Extra
+                                </a>
+                                <a href="{% url 'client_edit' item.client.id %}" class="btn btn-outline-secondary" title="Editar Cliente">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'client_toggle' item.client.id %}" class="btn btn-outline-warning" title="{% if item.client.is_active %}Desactivar{% else %}Activar{% endif %}">
+                                    <i class="bi {% if item.client.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-people display-4 d-block mb-2"></i>
+            <p class="mb-3">No se encontraron clientes registrados.</p>
+            <a href="{% url 'client_create' %}" class="btn btn-primary">Registrar Primer Cliente</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

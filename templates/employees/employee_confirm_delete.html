@@ -1,0 +1,22 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Remover Usuario | RecipeApp{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm rounded-4 mx-auto my-5" style="max-width: 500px;">
+    <div class="card-body p-4 text-center">
+        <div class="text-danger mb-3">
+            <i class="bi bi-person-x display-3"></i>
+        </div>
+        <h4 class="fw-bold mb-2">¿Remover usuario de la empresa?</h4>
+        <p class="text-muted mb-4">
+            Estás a punto de retirar el acceso de <strong>{{ membership.user.username }}</strong> a la empresa <strong>{{ company.name }}</strong>.
+        </p>
+        <form method="post" class="d-flex justify-content-center gap-2">
+            {% csrf_token %}
+            <a href="{% url 'employee_list' %}" class="btn btn-outline-secondary px-4">Cancelar</a>
+            <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Remover</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

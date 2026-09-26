@@ -1,0 +1,286 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Recibo #{{ receipt.receipt_number }} | {{ company.name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+@media print {
+    .app-sidebar, .app-topbar, .no-print {
+        display: none !important;
+    }
+    .app-content {
+        padding: 0 !important;
+    }
+    .receipt-paper {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Barra de Acciones Superior -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 no-print">
+    <div>
+        <a href="{% url 'receipt_list' %}" class="text-decoration-none text-muted small">
+            <i class="bi bi-arrow-left me-1"></i> Volver al Historial de Recibos
+        </a>
+        <div class="d-flex align-items-center gap-2 mt-1">
+            <h1 class="h4 fw-bold mb-0">Recibo #{{ receipt.receipt_number }}</h1>
+            {% if receipt.payment_proof %}
+                <span class="badge badge-paid"><i class="bi bi-patch-check-fill me-1"></i>Comprobante Registrado</span>
+            {% else %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-hourglass-split me-1"></i>Sin Comprobante Adjunto</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        {% if receipt.payment_proof %}
+            <button type="button" class="btn btn-success d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalViewProof">
+                <i class="bi bi-eye-fill"></i>
+                <span>Ver Comprobante</span>
+            </button>
+            <button type="button" class="btn btn-outline-success d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalUploadProof">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Cambiar Comprobante</span>
+            </button>
+        {% else %}
+            <button type="button" class="btn btn-warning fw-bold d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalUploadProof">
+                <i class="bi bi-cloud-arrow-up-fill"></i>
+                <span>Agregar Comprobante</span>
+            </button>
+        {% endif %}
+
+        <button type="button" onclick="window.print()" class="btn btn-outline-dark d-flex align-items-center gap-2">
+            <i class="bi bi-printer"></i>
+            <span>Imprimir</span>
+        </button>
+        <a href="{% url 'receipt_pdf' receipt.id %}" target="_blank" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-file-earmark-pdf-fill"></i>
+            <span>Descargar PDF</span>
+        </a>
+        <a href="{% url 'receipt_create' %}" class="btn btn-primary d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle"></i>
+            <span>Nuevo Recibo</span>
+        </a>
+    </div>
+</div>
+
+<!-- Documento de Recibo Básico (Solo HNL, sin método de pago, sin firmas, sin RTN/DNI) -->
+<div class="receipt-paper mb-4">
+    {% if receipt.status == 'cancelled' %}
+    <div class="alert alert-danger text-center fw-bold text-uppercase mb-4">
+        <i class="bi bi-x-octagon-fill me-2"></i>ESTE RECIBO SE ENCUENTRA ANULADO
+    </div>
+    {% endif %}
+
+    <!-- Cabecera Empresa y Número -->
+    <div class="row border-bottom border-2 border-primary pb-3 mb-4 align-items-start">
+        <div class="col-sm-7">
+            <h2 class="h3 fw-bold text-primary mb-1">{{ company.name }}</h2>
+            {% if company.legal_name %}<div class="fw-semibold text-secondary">{{ company.legal_name }}</div>{% endif %}
+            {% if company.address %}<div class="small text-muted">{{ company.address }}</div>{% endif %}
+            <div class="small text-muted">
+                {% if company.phone %}Tel: {{ company.phone }}{% endif %}
+                {% if company.email %} &bull; {{ company.email }}{% endif %}
+            </div>
+        </div>
+        <div class="col-sm-5 text-sm-end mt-3 mt-sm-0">
+            <div class="text-uppercase fw-bold text-primary small">Recibo de Pago</div>
+            <div class="display-6 fw-bold text-danger">N° {{ receipt.receipt_number }}</div>
+            <div class="small text-muted mt-1">
+                <strong>Fecha de Emisión:</strong> {{ receipt.issue_date|date:"d/m/Y" }}
+            </div>
+            <div class="small text-muted">
+                <strong>Periodo:</strong> {{ receipt.period_display }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos del Cliente -->
+    <div class="bg-light rounded-3 p-3 border mb-4">
+        <div class="row g-2">
+            <div class="col-md-8">
+                <div class="text-muted small fw-bold text-uppercase">Cliente:</div>
+                <div class="fs-5 fw-bold text-dark">{{ receipt.client_display_name }}</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small fw-bold text-uppercase">Teléfono / Contacto:</div>
+                <div class="fw-semibold">{% if receipt.client %}{{ receipt.client.phone|default:"-" }}{% else %}-{% endif %}</div>
+            </div>
+            <div class="col-12">
+                <div class="text-muted small fw-bold text-uppercase">Dirección:</div>
+                <div>{% if receipt.client %}{{ receipt.client.address|default:"No especificada" }}{% else %}No especificada{% endif %}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalle del Concepto y Total en Lempiras (Solo HNL) -->
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered align-middle mb-0">
+            <thead class="table-primary text-uppercase small">
+                <tr>
+                    <th>Concepto / Descripción</th>
+                    <th class="text-end" style="width: 220px;">Total (L HNL)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="py-3">
+                        <div class="fw-bold fs-6">{{ receipt.concept }}</div>
+                        <div class="small text-muted">Periodo correspondiente: {{ receipt.period_display }}</div>
+                    </td>
+                    <td class="text-end fw-bold fs-4 text-primary py-3">
+                        L {{ receipt.amount_hnl|floatformat:"2u" }} HNL
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Cuadro de Total Final y Observaciones -->
+    <div class="row g-3 align-items-center mb-3">
+        <div class="col-md-7">
+            {% if receipt.notes %}
+            <div class="p-3 rounded-3 border bg-light small">
+                <span class="text-muted d-block fw-bold mb-1">OBSERVACIONES:</span>
+                <span>{{ receipt.notes }}</span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="col-md-5 ms-auto">
+            <div class="p-3 rounded-3 border border-primary bg-primary bg-opacity-10 text-end">
+                <div class="small fw-bold text-primary text-uppercase">Total en Lempiras</div>
+                <div class="h3 fw-bold text-primary mb-0">L {{ receipt.amount_hnl|floatformat:"2u" }} HNL</div>
+            </div>
+        </div>
+    </div>
+
+    {% if company.receipt_footer_note %}
+    <div class="text-center text-muted small fst-italic border-top mt-4 pt-3">
+        {{ company.receipt_footer_note }}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Sección de Control Interno del Comprobante (No se imprime en el recibo) -->
+<div class="card border-0 shadow-sm rounded-4 mx-auto no-print" style="max-width: 800px;">
+    <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            <h5 class="fw-bold mb-1">
+                <i class="bi bi-file-earmark-check text-primary me-2"></i>Registro de Comprobante de Pago
+            </h5>
+            {% if receipt.payment_proof %}
+                <p class="text-muted small mb-0">
+                    Comprobante adjunto{% if receipt.payment_proof_uploaded_at %} el {{ receipt.payment_proof_uploaded_at|date:"d/m/Y H:i" }}{% endif %}.
+                    {% if receipt.payment_reference %} &bull; <strong>Referencia:</strong> {{ receipt.payment_reference }}{% endif %}
+                </p>
+            {% else %}
+                <p class="text-muted small mb-0">
+                    Cuando el cliente realice el pago de este recibo, puedes subir aquí la foto o PDF del comprobante para tu respaldo.
+                </p>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            {% if receipt.payment_proof %}
+                <button type="button" class="btn btn-success fw-semibold" data-bs-toggle="modal" data-bs-target="#modalViewProof">
+                    <i class="bi bi-eye me-1"></i> Ver Comprobante
+                </button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalUploadProof">
+                    <i class="bi bi-upload me-1"></i> Reemplazar
+                </button>
+            {% else %}
+                <button type="button" class="btn btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#modalUploadProof">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Subir Comprobante
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Subir / Actualizar Comprobante -->
+<div class="modal fade no-print" id="modalUploadProof" tabindex="-1" aria-labelledby="modalUploadProofLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form method="post" action="{% url 'receipt_upload_proof' receipt.id %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="modalUploadProofLabel">
+                        <i class="bi bi-cloud-arrow-up text-primary me-2"></i>Guardar Comprobante - Recibo #{{ receipt.receipt_number }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Seleccionar Imagen o PDF del Comprobante *</label>
+                        <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf" {% if not receipt.payment_proof %}required{% endif %}>
+                        <div class="form-text">Formatos permitidos: JPG, PNG, WEBP o documento PDF.</div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Referencia o Nota del Pago (Opcional)</label>
+                        <input type="text" name="payment_reference" class="form-control" value="{{ receipt.payment_reference }}" placeholder="Ej. Transferencia BAC #984120">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold">
+                        <i class="bi bi-check-lg me-1"></i> Guardar Comprobante
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver el Comprobante -->
+{% if receipt.payment_proof %}
+<div class="modal fade no-print" id="modalViewProof" tabindex="-1" aria-labelledby="modalViewProofLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-bold" id="modalViewProofLabel">
+                        <i class="bi bi-patch-check-fill text-success me-2"></i>Comprobante del Recibo #{{ receipt.receipt_number }}
+                    </h5>
+                    <div class="small text-muted">
+                        Cliente: <strong>{{ receipt.client_display_name }}</strong> &bull; Total: <strong>L {{ receipt.amount_hnl|floatformat:"2u" }} HNL</strong>
+                        {% if receipt.payment_reference %} &bull; Ref: <strong>{{ receipt.payment_reference }}</strong>{% endif %}
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body text-center bg-light p-3">
+                {% if receipt.is_proof_image %}
+                    <img src="{{ receipt.payment_proof.url }}" alt="Comprobante Recibo #{{ receipt.receipt_number }}" class="img-fluid rounded-3 shadow-sm border" style="max-height: 70vh; object-fit: contain;">
+                {% else %}
+                    <div class="py-4">
+                        <i class="bi bi-file-earmark-pdf text-danger display-1 d-block mb-3"></i>
+                        <p class="fw-semibold mb-2">Documento de Comprobante Adjunto</p>
+                        <a href="{{ receipt.payment_proof.url }}" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Abrir Documento en Pestaña Nueva
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalUploadProof">
+                    <i class="bi bi-upload me-1"></i> Cambiar Archivo
+                </button>
+                <div class="d-flex gap-2">
+                    <a href="{{ receipt.payment_proof.url }}" target="_blank" download class="btn btn-outline-primary">
+                        <i class="bi bi-download me-1"></i> Descargar Original
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

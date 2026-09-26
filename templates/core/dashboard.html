@@ -1,0 +1,374 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Panel Principal | {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- Encabezado y Acciones Rápidas -->
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h1 class="h3 fw-bold mb-0">{{ company.name }}</h1>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                Próximo Recibo: #{{ next_receipt_number }}
+            </span>
+        </div>
+        <p class="text-muted mb-0 small">
+            Resumen operativo y financiero de <strong>{{ current_month_name }} {{ current_year }}</strong> &bull; Tasa: <strong>$1 USD = L {{ current_rate|floatformat:4 }} HNL</strong>
+        </p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'receipt_create' %}" class="btn btn-primary fw-semibold d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-plus-circle"></i>
+            <span>Emitir Recibo</span>
+        </a>
+        <a href="{% url 'extra_income_create' %}" class="btn btn-success fw-semibold d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-cash-coin"></i>
+            <span>Ingreso Extra / Externo</span>
+        </a>
+        <a href="{% url 'expense_create' %}" class="btn btn-outline-danger fw-semibold d-flex align-items-center gap-2">
+            <i class="bi bi-dash-circle"></i>
+            <span>Registrar Gasto</span>
+        </a>
+        <a href="{% url 'client_create' %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-person-plus"></i>
+            <span>Nuevo Cliente</span>
+        </a>
+        <a href="{% url 'reports' %}" class="btn btn-outline-dark d-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-bar-graph"></i>
+            <span>Reportes PDF</span>
+        </a>
+    </div>
+</div>
+
+<!-- Tarjetas KPI Financieras del Mes -->
+<div class="row g-3 mb-4">
+    <!-- Ingresos -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Ingresos ({{ current_month_name }})</span>
+                    <h3 class="fw-bold text-success mb-0 mt-1">L {{ income_hnl|floatformat:2 }}</h3>
+                </div>
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-arrow-down-left-circle"></i>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center small pt-2 border-top">
+                <span class="text-muted">En Dólares:</span>
+                <span class="fw-bold text-dark">${{ income_usd|floatformat:2 }} USD</span>
+            </div>
+            {% if extra_income_hnl > 0 %}
+            <div class="small text-muted mt-1">
+                Incluye <strong>L {{ extra_income_hnl|floatformat:2 }}</strong> de ingresos extra/externos
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Gastos Empresa -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Gastos de Empresa</span>
+                    <h3 class="fw-bold text-danger mb-0 mt-1">L {{ exp_company_hnl|floatformat:2 }}</h3>
+                </div>
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+                    <i class="bi bi-building-dash"></i>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center small pt-2 border-top">
+                <span class="text-muted">Equivalente USD:</span>
+                <span class="fw-bold text-dark">${{ exp_company_usd|floatformat:2 }} USD</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gastos Personales -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Gastos Personales</span>
+                    <h3 class="fw-bold text-warning-emphasis mb-0 mt-1">L {{ exp_personal_hnl|floatformat:2 }}</h3>
+                </div>
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning-emphasis">
+                    <i class="bi bi-person-dash"></i>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center small pt-2 border-top">
+                <span class="text-muted">Equivalente USD:</span>
+                <span class="fw-bold text-dark">${{ exp_personal_usd|floatformat:2 }} USD</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Neto -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card h-100">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="text-muted small fw-semibold text-uppercase">Balance Neto Final</span>
+                    <h3 class="fw-bold {% if net_balance_hnl >= 0 %}text-primary{% else %}text-danger{% endif %} mb-0 mt-1">
+                        L {{ net_balance_hnl|floatformat:2 }}
+                    </h3>
+                </div>
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center small pt-2 border-top">
+                <span class="text-muted" title="Ingresos menos Gastos de Empresa">Bal. Operativo:</span>
+                <span class="fw-bold text-dark">L {{ operational_balance_hnl|floatformat:2 }} (${{ operational_balance_usd|floatformat:2 }})</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sección Recordatorios de Cobro y Estado de Clientes del Mes -->
+<div class="row g-4 mb-4">
+    <!-- Estado de Cobranza -->
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6"><i class="bi bi-pie-chart text-primary me-2"></i>Cobranza de {{ current_month_name }}</h5>
+                <a href="{% url 'reports' %}" class="btn btn-sm btn-link text-decoration-none p-0">Ver Reporte</a>
+            </div>
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted small">Clientes activos totales:</span>
+                        <span class="fw-bold">{{ total_clients }}</span>
+                    </div>
+                    <div class="row g-2 text-center my-3">
+                        <div class="col-6">
+                            <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success border-opacity-25">
+                                <div class="h3 fw-bold text-success mb-0">{{ paid_count }}</div>
+                                <div class="small text-success-emphasis fw-semibold">Pagaron</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25">
+                                <div class="h3 fw-bold text-danger mb-0">{{ pending_count }}</div>
+                                <div class="small text-danger-emphasis fw-semibold">Pendientes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-2 pt-3 border-top">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'receipt_monthly_pdf' %}?month={{ today.month }}&year={{ today.year }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Descargar Reporte de Cobros (PDF)
+                        </a>
+                        <a href="{% url 'expense_financial_pdf' %}?month={{ today.month }}&year={{ today.year }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Descargar Estado Ingresos vs Gastos (PDF)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas y Recordatorios de Cobro -->
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6">
+                    <i class="bi bi-bell-fill text-warning me-2"></i>Recordatorios de Cobro (Vencidos y Próximos)
+                </h5>
+                <a href="{% url 'reminders' %}" class="btn btn-sm btn-outline-primary">Ver Todos</a>
+            </div>
+            <div class="card-body p-0">
+                {% if urgent_reminders %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Cliente</th>
+                                <th>Día Cobro</th>
+                                <th>Cuota Mensual</th>
+                                <th>Estado</th>
+                                <th class="text-end pe-3">Acción Rápida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in urgent_reminders %}
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-semibold">{{ item.client.name }}</div>
+                                    <div class="text-muted small">{{ item.client.phone|default:"Sin teléfono" }}</div>
+                                </td>
+                                <td>Día {{ item.status.billing_day }}</td>
+                                <td>
+                                    <span class="fw-bold text-dark">${{ item.status.next_amount_usd|floatformat:2 }} USD</span>
+                                    {% if item.client.payment_parts == 2 %}
+                                        <div class="small text-muted">Total mes: ${{ item.client.monthly_fee_usd|floatformat:2 }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.status.is_partial %}
+                                        <div class="small text-warning-emphasis fw-semibold mb-1">Abonó ${{ item.status.paid_usd|floatformat:2 }}</div>
+                                    {% endif %}
+                                    {% if item.status.status == 'overdue' %}
+                                        <span class="badge badge-overdue">{{ item.status.label }}</span>
+                                    {% elif item.status.status == 'due_today' %}
+                                        <span class="badge badge-due-today">{{ item.status.label }}</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info-emphasis">{{ item.status.label }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-primary" title="Emitir Recibo Ahora">
+                                            <i class="bi bi-receipt"></i> Cobrar
+                                        </a>
+                                        {% if item.whatsapp_url %}
+                                        <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success" title="Recordar por WhatsApp">
+                                            <i class="bi bi-whatsapp"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted my-3">
+                    <i class="bi bi-check-circle-fill text-success fs-1 d-block mb-2"></i>
+                    <p class="mb-0 fw-semibold">¡No hay cobros vencidos ni urgentes en este momento!</p>
+                    <small>Todos los clientes con fecha de cobro cumplida están al día.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimos Recibos y Últimos Gastos -->
+<div class="row g-4">
+    <!-- Últimos Recibos -->
+    <div class="col-12 col-xl-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6">
+                    <i class="bi bi-receipt text-success me-2"></i>Últimos Recibos Emitidos
+                </h5>
+                <a href="{% url 'receipt_list' %}" class="btn btn-sm btn-link text-decoration-none p-0">Ver Historial</a>
+            </div>
+            <div class="card-body p-0">
+                {% if latest_receipts %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">N° Recibo</th>
+                                <th>Cliente</th>
+                                <th>Periodo</th>
+                                <th>Total</th>
+                                <th class="text-end pe-3">PDF</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in latest_receipts %}
+                            <tr>
+                                <td class="ps-3">
+                                    <a href="{% url 'receipt_detail' r.id %}" class="fw-bold text-decoration-none">#{{ r.receipt_number }}</a>
+                                    {% if r.status == 'cancelled' %}
+                                        <span class="badge bg-danger ms-1">Anulado</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-truncate" style="max-width: 150px;">{{ r.client_display_name }}</div>
+                                    <div class="text-muted small">{{ r.issue_date|date:"d/m/Y" }}</div>
+                                </td>
+                                <td class="small">{{ r.period_display }}</td>
+                                <td>
+                                    <div class="fw-bold text-success">L {{ r.amount_hnl|floatformat:2 }}</div>
+                                    <div class="text-muted small">${{ r.amount_usd|floatformat:2 }} USD</div>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'receipt_detail' r.id %}" class="btn btn-outline-secondary" title="Ver / Imprimir">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{% url 'receipt_pdf' r.id %}" target="_blank" class="btn btn-outline-danger" title="Descargar PDF">
+                                            <i class="bi bi-file-earmark-pdf"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <p class="mb-2">Aún no se han emitido recibos en esta empresa.</p>
+                    <a href="{% url 'receipt_create' %}" class="btn btn-sm btn-primary">Emitir Primer Recibo</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimos Gastos -->
+    <div class="col-12 col-xl-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6">
+                    <i class="bi bi-wallet2 text-danger me-2"></i>Bitácora Reciente de Gastos
+                </h5>
+                <a href="{% url 'expense_list' %}" class="btn btn-sm btn-link text-decoration-none p-0">Ver Bitácora</a>
+            </div>
+            <div class="card-body p-0">
+                {% if latest_expenses %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-custom">
+                        <thead>
+                            <tr>
+                                <th class="ps-3">Concepto</th>
+                                <th>Tipo</th>
+                                <th>Fecha</th>
+                                <th class="text-end pe-3">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exp in latest_expenses %}
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-semibold text-truncate" style="max-width: 180px;">{{ exp.title }}</div>
+                                    <div class="text-muted small">{{ exp.get_category_display|truncatechars:28 }}</div>
+                                </td>
+                                <td>
+                                    {% if exp.expense_type == 'company' %}
+                                        <span class="badge badge-company">Empresa</span>
+                                    {% else %}
+                                        <span class="badge badge-personal">Personal</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-muted">{{ exp.expense_date|date:"d/m/Y" }}</td>
+                                <td class="text-end pe-3">
+                                    <div class="fw-bold text-danger">L {{ exp.amount_hnl|floatformat:2 }}</div>
+                                    <div class="text-muted small">${{ exp.amount_usd|floatformat:2 }} USD</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <p class="mb-2">Aún no se han registrado gastos en la bitácora.</p>
+                    <a href="{% url 'expense_create' %}" class="btn btn-sm btn-outline-danger">Registrar Primer Gasto</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

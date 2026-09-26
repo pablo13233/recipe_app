@@ -1,0 +1,158 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Bitácora de Gastos | {{ company.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Control y Bitácora de Gastos</h1>
+        <p class="text-muted mb-0 small">Registra los gastos operativos de <strong>{{ company.name }}</strong> y tus gastos personales para compararlos con los ingresos.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reports' %}" class="btn btn-outline-dark d-flex align-items-center gap-2">
+            <i class="bi bi-bar-chart-line"></i>
+            <span>Ver Balance vs Ingresos</span>
+        </a>
+        <a href="{% url 'expense_create' %}" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-plus-circle"></i>
+            <span>Registrar Gasto</span>
+        </a>
+    </div>
+</div>
+
+<!-- Tarjetas de Resumen de Gastos -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+        <div class="stat-card border-start border-4 border-primary">
+            <div class="text-muted small fw-bold text-uppercase">Gastos de Empresa (Filtrado)</div>
+            <div class="h4 fw-bold text-primary mt-1 mb-0">L {{ exp_comp_hnl|floatformat:2 }} HNL</div>
+            <div class="small text-muted">Equivalente: <strong>${{ exp_comp_usd|floatformat:2 }} USD</strong></div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card border-start border-4 border-warning">
+            <div class="text-muted small fw-bold text-uppercase">Gastos Personales (Filtrado)</div>
+            <div class="h4 fw-bold text-warning-emphasis mt-1 mb-0">L {{ exp_pers_hnl|floatformat:2 }} HNL</div>
+            <div class="small text-muted">Equivalente: <strong>${{ exp_pers_usd|floatformat:2 }} USD</strong></div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card border-start border-4 border-danger">
+            <div class="text-muted small fw-bold text-uppercase">Total Egresos</div>
+            <div class="h4 fw-bold text-danger mt-1 mb-0">L {{ total_hnl|floatformat:2 }} HNL</div>
+            <div class="small text-muted">Equivalente: <strong>${{ total_usd|floatformat:2 }} USD</strong></div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros de Bitácora -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Buscar Concepto</label>
+                <input type="text" name="q" class="form-control" placeholder="Luz, alquiler, proveedor..." value="{{ search_q }}">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-muted mb-1">Tipo de Gasto</label>
+                <select name="type" class="form-select">
+                    <option value="all" {% if type_filter == 'all' %}selected{% endif %}>Todos</option>
+                    <option value="company" {% if type_filter == 'company' %}selected{% endif %}>Empresa</option>
+                    <option value="personal" {% if type_filter == 'personal' %}selected{% endif %}>Personal</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-bold text-muted mb-1">Categoría</label>
+                <select name="category" class="form-select">
+                    <option value="">Todas las categorías</option>
+                    {% for cat_val, cat_label in categories %}
+                        <option value="{{ cat_val }}" {% if cat_val == category_filter %}selected{% endif %}>{{ cat_label|truncatechars:30 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-muted mb-1">Mes</label>
+                <select name="month" class="form-select">
+                    <option value="">Todos</option>
+                    {% for m_num, m_label in months %}
+                        <option value="{{ m_num }}" {% if m_num == selected_month %}selected{% endif %}>{{ m_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary flex-grow-1">Filtrar</button>
+                <a href="{% url 'expense_list' %}" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Gastos -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+        {% if expenses %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-custom">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Fecha</th>
+                        <th>Concepto / Detalle</th>
+                        <th>Tipo</th>
+                        <th>Categoría</th>
+                        <th>Beneficiario</th>
+                        <th>Equiv. USD</th>
+                        <th>Total HNL</th>
+                        <th class="text-end pe-4">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exp in expenses %}
+                    <tr>
+                        <td class="ps-4 small">{{ exp.expense_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="fw-bold">{{ exp.title }}</div>
+                            {% if exp.description %}
+                                <div class="small text-muted text-truncate" style="max-width: 220px;">{{ exp.description }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if exp.expense_type == 'company' %}
+                                <span class="badge badge-company"><i class="bi bi-building me-1"></i>Empresa</span>
+                            {% else %}
+                                <span class="badge badge-personal"><i class="bi bi-person me-1"></i>Personal</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">{{ exp.get_category_display|truncatechars:26 }}</td>
+                        <td class="small text-muted">{{ exp.beneficiary|default:"-" }}</td>
+                        <td class="fw-semibold text-muted">${{ exp.amount_usd|floatformat:2 }}</td>
+                        <td class="fw-bold text-danger">L {{ exp.amount_hnl|floatformat:2 }}</td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group btn-group-sm">
+                                {% if exp.receipt_voucher %}
+                                <a href="{{ exp.receipt_voucher.url }}" target="_blank" class="btn btn-outline-info" title="Ver Comprobante">
+                                    <i class="bi bi-paperclip"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'expense_edit' exp.id %}" class="btn btn-outline-secondary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'expense_delete' exp.id %}" class="btn btn-outline-danger" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-wallet2 display-4 d-block mb-2"></i>
+            <p class="mb-3">No hay gastos registrados con los filtros actuales.</p>
+            <a href="{% url 'expense_create' %}" class="btn btn-danger">Registrar Primer Gasto</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
