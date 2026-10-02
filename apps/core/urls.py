@@ -11,6 +11,8 @@ urlpatterns = [
     path('companies/new/', views.company_create_view, name='company_create'),
     path('companies/<int:pk>/edit/', views.company_edit_view, name='company_edit'),
     path('update-exchange-rate/', views.update_exchange_rate_view, name='update_exchange_rate'),
+    path('sync-exchange-rate-now/', views.sync_exchange_rate_now_view, name='sync_exchange_rate_now'),
+    path('test-exchange-rate-api/', views.test_exchange_rate_api_view, name='test_exchange_rate_api'),
     path('reports/', views.reports_view, name='reports'),
     path('reminders/', views.reminders_view, name='reminders'),
 ]

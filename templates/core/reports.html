@@ -50,36 +50,95 @@
     </div>
 </div>
 
-<!-- Resumen de Totales del Periodo -->
+<!-- Resumen de Totales y Conciliación con Arrastre de Saldo (Rollover) -->
 <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="text-muted small fw-semibold text-uppercase">Ingresos Totales ({{ month_name }})</div>
+    <!-- 1. Saldo Anterior (Sobrante) -->
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="stat-card border-start border-info border-4">
+            <div class="text-secondary small fw-semibold text-uppercase">Sobrante Mes Anterior</div>
+            <div class="h4 fw-bold text-info mt-1 mb-1">L {{ rollover_balance_hnl|floatformat:2 }}</div>
+            <div class="small text-secondary">USD: <strong>${{ rollover_balance_usd|floatformat:2 }}</strong> (Fondo Inicial)</div>
+        </div>
+    </div>
+    <!-- 2. Ingresos Totales -->
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="stat-card border-start border-success border-4">
+            <div class="text-secondary small fw-semibold text-uppercase">Ingresos ({{ month_name }})</div>
             <div class="h4 fw-bold text-success mt-1 mb-1">L {{ total_income_hnl|floatformat:2 }}</div>
-            <div class="small text-muted">En USD: <strong>${{ total_income_usd|floatformat:2 }}</strong> ({{ paid_receipts|length }} recibos{% if extra_incomes %} + {{ extra_incomes|length }} extra{% endif %})</div>
+            <div class="small text-secondary">USD: <strong>${{ total_income_usd|floatformat:2 }}</strong> ({{ paid_receipts|length }} rec.{% if extra_incomes %} + {{ extra_incomes|length }} ext.{% endif %})</div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="text-muted small fw-semibold text-uppercase">Gastos de Empresa ({{ month_name }})</div>
-            <div class="h4 fw-bold text-danger mt-1 mb-1">L {{ exp_comp_hnl|floatformat:2 }}</div>
-            <div class="small text-muted">En USD: <strong>${{ exp_comp_usd|floatformat:2 }}</strong> ({{ expense_company|length }} registros)</div>
+    <!-- 3. Fondos Disponibles -->
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="stat-card border-start border-primary border-4">
+            <div class="text-secondary small fw-semibold text-uppercase">Fondos Disponibles</div>
+            <div class="h4 fw-bold text-primary mt-1 mb-1">L {{ total_available_hnl|floatformat:2 }}</div>
+            <div class="small text-secondary">USD: <strong>${{ total_available_usd|floatformat:2 }}</strong> (Sobrante + Ingresos)</div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="text-muted small fw-semibold text-uppercase">Gastos Personales ({{ month_name }})</div>
-            <div class="h4 fw-bold text-warning-emphasis mt-1 mb-1">L {{ exp_pers_hnl|floatformat:2 }}</div>
-            <div class="small text-muted">En USD: <strong>${{ exp_pers_usd|floatformat:2 }}</strong> ({{ expense_personal|length }} registros)</div>
+    <!-- 4. Gastos Totales -->
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="stat-card border-start border-danger border-4">
+            <div class="text-secondary small fw-semibold text-uppercase">Gastos ({{ month_name }})</div>
+            <div class="h4 fw-bold text-danger mt-1 mb-1">L {{ total_exp_hnl|floatformat:2 }}</div>
+            <div class="small text-secondary">USD: <strong>${{ total_exp_usd|floatformat:2 }}</strong> (Emp: L {{ exp_comp_hnl|floatformat:0 }} | Pers: L {{ exp_pers_hnl|floatformat:0 }})</div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <div class="text-muted small fw-semibold text-uppercase">Balance Neto ({{ month_name }})</div>
-            <div class="h4 fw-bold {% if net_balance_hnl >= 0 %}text-primary{% else %}text-danger{% endif %} mt-1 mb-1">
-                L {{ net_balance_hnl|floatformat:2 }}
+    <!-- 5. Saldo Final Remanente -->
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="stat-card border-start border-warning border-4">
+            <div class="text-secondary small fw-semibold text-uppercase">Saldo Remanente</div>
+            <div class="h4 fw-bold {% if ending_balance_hnl >= 0 %}text-success{% else %}text-danger{% endif %} mt-1 mb-1">
+                L {{ ending_balance_hnl|floatformat:2 }}
             </div>
-            <div class="small text-muted">En USD: <strong>${{ net_balance_usd|floatformat:2 }}</strong></div>
+            <div class="small text-secondary">USD: <strong>${{ ending_balance_usd|floatformat:2 }}</strong> (Pasa al próx. mes)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Conciliación Detallada de Balance Recíproco -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent py-3 border-secondary border-opacity-25">
+        <h6 class="mb-0 fw-bold">
+            <i class="bi bi-arrow-repeat text-info me-2"></i>Conciliación de Balance Financiero y Arrastre Mensual
+        </h6>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-3 text-center">
+            <div class="col-md">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-25">
+                    <div class="small text-secondary fw-semibold">Saldo Inicial Anterior</div>
+                    <div class="fs-6 fw-bold text-info">L {{ rollover_balance_hnl|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-auto d-flex align-items-center justify-content-center text-secondary fs-5 fw-bold">+</div>
+            <div class="col-md">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-25">
+                    <div class="small text-secondary fw-semibold">Ingresos del Mes</div>
+                    <div class="fs-6 fw-bold text-success">L {{ total_income_hnl|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-auto d-flex align-items-center justify-content-center text-secondary fs-5 fw-bold">=</div>
+            <div class="col-md">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-25">
+                    <div class="small text-secondary fw-semibold">Fondos Disponibles</div>
+                    <div class="fs-6 fw-bold text-primary">L {{ total_available_hnl|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-auto d-flex align-items-center justify-content-center text-secondary fs-5 fw-bold">-</div>
+            <div class="col-md">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-25">
+                    <div class="small text-secondary fw-semibold">Gastos Totales</div>
+                    <div class="fs-6 fw-bold text-danger">L {{ total_exp_hnl|floatformat:2 }}</div>
+                </div>
+            </div>
+            <div class="col-auto d-flex align-items-center justify-content-center text-secondary fs-5 fw-bold">=</div>
+            <div class="col-md">
+                <div class="p-2 rounded bg-dark border border-secondary border-opacity-25">
+                    <div class="small text-secondary fw-semibold">Saldo Remanente Final</div>
+                    <div class="fs-6 fw-bold {% if ending_balance_hnl >= 0 %}text-success{% else %}text-danger{% endif %}">L {{ ending_balance_hnl|floatformat:2 }}</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -268,7 +327,7 @@
 <div class="row g-4">
     <div class="col-12 col-md-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-bottom py-3">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
                 <h5 class="card-title mb-0 fw-bold fs-6 text-danger">
                     <i class="bi bi-building-dash me-2"></i>Gastos de Empresa ({{ month_name }} {{ selected_year }})
                 </h5>
@@ -277,7 +336,7 @@
                 {% if expense_company %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-custom">
-                        <thead>
+                        <thead class="table-dark">
                             <tr>
                                 <th class="ps-3">Fecha</th>
                                 <th>Concepto / Categoría</th>
@@ -289,12 +348,12 @@
                             <tr>
                                 <td class="ps-3 small">{{ e.expense_date|date:"d/m/Y" }}</td>
                                 <td>
-                                    <div class="fw-semibold">{{ e.title }}</div>
-                                    <div class="small text-muted">{{ e.get_category_display }}</div>
+                                    <div class="fw-semibold text-light">{{ e.title }}</div>
+                                    <div class="small text-secondary">{{ e.get_category_display }}</div>
                                 </td>
                                 <td class="text-end pe-3">
                                     <div class="fw-bold text-danger">L {{ e.amount_hnl|floatformat:2 }}</div>
-                                    <div class="small text-muted">${{ e.amount_usd|floatformat:2 }} USD</div>
+                                    <div class="small text-secondary">${{ e.amount_usd|floatformat:2 }} USD</div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -302,7 +361,7 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="p-4 text-center text-muted">Sin gastos de empresa en este mes.</div>
+                <div class="p-4 text-center text-secondary">Sin gastos de empresa en este mes.</div>
                 {% endif %}
             </div>
         </div>
@@ -310,8 +369,8 @@
 
     <div class="col-12 col-md-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="card-title mb-0 fw-bold fs-6 text-warning-emphasis">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-warning">
                     <i class="bi bi-person-dash me-2"></i>Gastos Personales ({{ month_name }} {{ selected_year }})
                 </h5>
             </div>
@@ -319,7 +378,7 @@
                 {% if expense_personal %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-custom">
-                        <thead>
+                        <thead class="table-dark">
                             <tr>
                                 <th class="ps-3">Fecha</th>
                                 <th>Concepto / Categoría</th>
@@ -331,12 +390,12 @@
                             <tr>
                                 <td class="ps-3 small">{{ e.expense_date|date:"d/m/Y" }}</td>
                                 <td>
-                                    <div class="fw-semibold">{{ e.title }}</div>
-                                    <div class="small text-muted">{{ e.get_category_display }}</div>
+                                    <div class="fw-semibold text-light">{{ e.title }}</div>
+                                    <div class="small text-secondary">{{ e.get_category_display }}</div>
                                 </td>
                                 <td class="text-end pe-3">
-                                    <div class="fw-bold text-warning-emphasis">L {{ e.amount_hnl|floatformat:2 }}</div>
-                                    <div class="small text-muted">${{ e.amount_usd|floatformat:2 }} USD</div>
+                                    <div class="fw-bold text-warning">L {{ e.amount_hnl|floatformat:2 }}</div>
+                                    <div class="small text-secondary">${{ e.amount_usd|floatformat:2 }} USD</div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -344,10 +403,83 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="p-4 text-center text-muted">Sin gastos personales en este mes.</div>
+                <div class="p-4 text-center text-secondary">Sin gastos personales en este mes.</div>
                 {% endif %}
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Sección 3: Presupuesto vs Real en Pagos Recurrentes (Luz, Internet, etc.) -->
+<div class="card border-0 shadow-sm rounded-4 mt-4 mb-4">
+    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h5 class="card-title mb-0 fw-bold fs-6 text-warning">
+                <i class="bi bi-calendar-check me-2"></i>Presupuesto vs Ejecución en Servicios Recurrentes ({{ month_name }} {{ selected_year }})
+            </h5>
+            <small class="text-secondary">Presupuestado: <strong>L {{ budget_tot_hnl|floatformat:2 }}</strong> &bull; Pagado: <strong class="text-success">L {{ budget_paid_hnl|floatformat:2 }}</strong></small>
+        </div>
+        <a href="{% url 'recurring_payment_list' %}" class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-gear me-1"></i> Administrar Presupuesto
+        </a>
+    </div>
+    <div class="card-body p-0">
+        {% if recurring_data %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 table-custom">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-3">Día</th>
+                        <th>Servicio / Obligación</th>
+                        <th>Categoría</th>
+                        <th>Presupuestado</th>
+                        <th>Estado en {{ month_name }}</th>
+                        <th class="text-end pe-3">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in recurring_data %}
+                    <tr>
+                        <td class="ps-3 fw-bold">Día {{ r.item.due_day }}</td>
+                        <td>
+                            <div class="fw-semibold text-light">{{ r.item.title }}</div>
+                            <small class="text-secondary">{{ r.item.beneficiary|default:"-" }}</small>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ r.item.get_category_display }}</span></td>
+                        <td>
+                            <div class="fw-bold text-light">L {{ r.status.estimated_hnl|floatformat:2 }}</div>
+                            <small class="text-secondary">${{ r.status.estimated_usd|floatformat:2 }} USD</small>
+                        </td>
+                        <td>
+                            {% if r.status.is_paid %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Pagado (L {{ r.status.paid_amount_hnl|floatformat:2 }})</span>
+                            {% elif r.status.status == 'overdue' %}
+                                <span class="badge bg-danger">{{ r.status.label }}</span>
+                            {% elif r.status.status == 'due_today' %}
+                                <span class="badge bg-warning text-dark fw-bold">Vence Hoy</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ r.status.label }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            {% if not r.status.is_paid %}
+                                <a href="{% url 'expense_create' %}?recurring_id={{ r.item.id }}" class="btn btn-sm btn-success">
+                                    <i class="bi bi-cash me-1"></i> Pagar
+                                </a>
+                            {% else %}
+                                <span class="text-success small fw-semibold"><i class="bi bi-check2-all me-1"></i>Solventado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-secondary small">
+            No hay servicios recurrentes configurados. <a href="{% url 'recurring_payment_create' %}">Configurar el primero</a>.
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

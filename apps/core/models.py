@@ -38,7 +38,55 @@ class Company(models.Model):
         max_digits=10, 
         decimal_places=4, 
         default=Decimal('24.7500'),
-        verbose_name="Tasa de cambio predeterminada (USD -> HNL)"
+        verbose_name="Tasa de cambio predeterminada / fija (USD -> HNL)",
+        help_text="Tasa de respaldo utilizada si no hay conexión a la API o si se desactiva la consulta automática"
+    )
+    exchange_rate_api_url = models.CharField(
+        max_length=500,
+        blank=True,
+        default="https://open.er-api.com/v6/latest/USD",
+        verbose_name="URL del Endpoint de la API",
+        help_text="Endpoint para consultar tasa USD a HNL. Ej: https://open.er-api.com/v6/latest/USD o https://v6.exchangerate-api.com/v6/{api_key}/latest/USD"
+    )
+    exchange_rate_api_key = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        verbose_name="API Key del Servicio (Opcional)",
+        help_text="Clave de API si tu proveedor (ej. ExchangeRate-API, Fixer) la solicita"
+    )
+    exchange_rate_auto_update = models.BooleanField(
+        default=True,
+        verbose_name="Actualizar API automáticamente 1 vez al día",
+        help_text="Si está activo, la tarea programada (entre 1:00 AM y 4:00 AM) consultará la API y guardará la tasa del día."
+    )
+    current_exchange_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        default=Decimal('24.7500'),
+        blank=True,
+        verbose_name="Tasa de cambio actual almacenada (USD -> HNL)",
+        help_text="Tasa guardada automáticamente una vez al día por la tarea programada. Es la que se muestra en el sistema y en la página pública."
+    )
+    exchange_rate_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha y hora de última actualización de la tasa"
+    )
+
+    # Saldo inicial de caja base (Opcional, para arrancar el histórico si ya existía dinero previo)
+    initial_balance_hnl = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Saldo Inicial de Caja en Lempiras (L HNL)",
+        help_text="Fondo inicial disponible con el que arrancó la empresa antes de registrar movimientos"
+    )
+    initial_balance_usd = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Saldo Inicial de Caja en Dólares ($ USD)"
     )
     
     is_active = models.BooleanField(default=True, verbose_name="Activa")
@@ -74,6 +122,14 @@ class Company(models.Model):
 
 
 class ExchangeRateLog(models.Model):
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='exchange_rate_logs',
+        verbose_name="Empresa"
+    )
     date = models.DateField(default=timezone.now, verbose_name="Fecha")
     rate_usd_to_hnl = models.DecimalField(
         max_digits=10, 

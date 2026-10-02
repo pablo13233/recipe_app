@@ -1,189 +1,160 @@
 {% extends 'base/app_layout.html' %}
 
-{% block title %}Recordatorios de Cobro | {{ company.name }}{% endblock %}
+{% block title %}Recordatorios de Pagos & Cobros | {{ company.name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
-        <h1 class="h3 fw-bold mb-1"><i class="bi bi-bell text-warning me-2"></i>Recordatorios de Cobro ({{ month_name }} {{ today.year }})</h1>
-        <p class="text-muted mb-0 small">Control de vencimientos mensuales según el día de cobro de cada cliente. Envía recordatorios por WhatsApp o emite su recibo en un clic.</p>
+        <h1 class="h3 fw-bold mb-1"><i class="bi bi-bell text-warning me-2"></i>Centro de Recordatorios ({{ month_name }} {{ today.year }})</h1>
+        <p class="text-secondary mb-0 small">Monitorea cobros pendientes de clientes y pagos de servicios recurrentes por vencer (luz, internet, renta, etc.).</p>
     </div>
-    <a href="{% url 'receipt_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-plus-circle"></i>
-        <span>Emitir Recibo Manual</span>
-    </a>
-</div>
-
-<!-- Tarjetas de Conteo -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-        <div class="stat-card border-start border-4 border-danger">
-            <div class="text-muted small fw-bold text-uppercase">Vencidos</div>
-            <div class="h2 fw-bold text-danger mb-0">{{ overdue_list|length }}</div>
-            <div class="small text-muted">Día de cobro superado</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="stat-card border-start border-4 border-warning">
-            <div class="text-muted small fw-bold text-uppercase">Cobro Hoy</div>
-            <div class="h2 fw-bold text-warning-emphasis mb-0">{{ due_today_list|length }}</div>
-            <div class="small text-muted">Corresponde hoy día {{ today.day }}</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="stat-card border-start border-4 border-info">
-            <div class="text-muted small fw-bold text-uppercase">Próximos (5 días)</div>
-            <div class="h2 fw-bold text-info-emphasis mb-0">{{ upcoming_list|length }}</div>
-            <div class="small text-muted">Pronto a vencer</div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="stat-card border-start border-4 border-success">
-            <div class="text-muted small fw-bold text-uppercase">Al Día (Pagados)</div>
-            <div class="h2 fw-bold text-success mb-0">{{ paid_list|length }}</div>
-            <div class="small text-muted">Ya pagaron {{ month_name }}</div>
-        </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'recurring_payment_create' %}" class="btn btn-warning fw-semibold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-plus"></i>
+            <span>+ Nuevo Pago Recurrente</span>
+        </a>
+        <a href="{% url 'receipt_create' %}" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+            <i class="bi bi-plus-circle"></i>
+            <span>Emitir Recibo Manual</span>
+        </a>
     </div>
 </div>
 
-<!-- 1. VENCIDOS Y DE HOY -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-white border-bottom py-3">
-        <h5 class="card-title mb-0 fw-bold fs-6 text-danger">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>Cobros Vencidos y que Vencen Hoy
-        </h5>
-    </div>
-    <div class="card-body p-0">
-        {% if overdue_list or due_today_list %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 table-custom">
-                <thead>
-                    <tr>
-                        <th class="ps-3">Cliente</th>
-                        <th>Contacto</th>
-                        <th>Día Cobro</th>
-                        <th>Estado</th>
-                        <th>Monto Mensual</th>
-                        <th class="text-end pe-3">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in due_today_list %}
-                    <tr class="table-warning bg-opacity-10">
-                        <td class="ps-3">
-                            <div class="fw-bold">{{ item.client.name }}</div>
-                            {% if item.info.is_partial %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis">Abonó ${{ item.info.paid_usd|floatformat:2 }} de ${{ item.client.monthly_fee_usd|floatformat:2 }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ item.client.phone|default:"Sin teléfono" }}</td>
-                        <td>Día {{ item.info.billing_day }}</td>
-                        <td><span class="badge badge-due-today">{{ item.info.label }}</span></td>
-                        <td>
-                            <div class="fw-bold">${{ item.due_usd|floatformat:2 }} USD</div>
-                            <div class="small text-muted">~L {{ item.approx_hnl|floatformat:2 }} HNL</div>
-                        </td>
-                        <td class="text-end pe-3">
-                            <div class="btn-group btn-group-sm">
-                                <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-primary">
-                                    <i class="bi bi-receipt me-1"></i>Generar Recibo
-                                </a>
-                                {% if item.whatsapp_url %}
-                                <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success">
-                                    <i class="bi bi-whatsapp me-1"></i>Recordar
-                                </a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
+<!-- TABS NAVEGACIÓN ENTRE COBROS A CLIENTES Y PAGOS RECURRENTES -->
+<ul class="nav nav-pills nav-fill mb-4 p-1 rounded-3 bg-dark border border-secondary border-opacity-25" id="reminderTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-bold py-2" id="clients-tab" data-bs-toggle="tab" data-bs-target="#clients-content" type="button" role="tab">
+            <i class="bi bi-people me-2"></i>Cobros a Clientes (Ingresos)
+            {% if overdue_list|length > 0 %}
+                <span class="badge bg-danger ms-2">{{ overdue_list|length }} Vencidos</span>
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-bold py-2" id="recurring-tab" data-bs-toggle="tab" data-bs-target="#recurring-content" type="button" role="tab">
+            <i class="bi bi-lightning-charge me-2 text-warning"></i>Pagos Recurrentes / Servicios (Luz, Internet, etc.)
+            {% if rec_overdue_list|length > 0 %}
+                <span class="badge bg-danger ms-2">{{ rec_overdue_list|length }} Vencidos</span>
+            {% endif %}
+        </button>
+    </li>
+</ul>
 
-                    {% for item in overdue_list %}
-                    <tr>
-                        <td class="ps-3">
-                            <div class="fw-bold">{{ item.client.name }}</div>
-                            {% if item.info.is_partial %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis">Abonó ${{ item.info.paid_usd|floatformat:2 }} de ${{ item.client.monthly_fee_usd|floatformat:2 }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ item.client.phone|default:"Sin teléfono" }}</td>
-                        <td>Día {{ item.info.billing_day }}</td>
-                        <td><span class="badge badge-overdue">{{ item.info.label }}</span></td>
-                        <td>
-                            <div class="fw-bold">${{ item.due_usd|floatformat:2 }} USD</div>
-                            <div class="small text-muted">~L {{ item.approx_hnl|floatformat:2 }} HNL</div>
-                        </td>
-                        <td class="text-end pe-3">
-                            <div class="btn-group btn-group-sm">
-                                <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-primary">
-                                    <i class="bi bi-receipt me-1"></i>Generar Recibo
-                                </a>
-                                {% if item.whatsapp_url %}
-                                <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success">
-                                    <i class="bi bi-whatsapp me-1"></i>Recordar
-                                </a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="tab-content" id="reminderTabsContent">
+    <!-- ========================================================================= -->
+    <!-- TAB 1: COBROS A CLIENTES -->
+    <!-- ========================================================================= -->
+    <div class="tab-pane fade show active" id="clients-content" role="tabpanel">
+        <!-- Tarjetas de Conteo Clientes -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="stat-card border-start border-4 border-danger">
+                    <div class="text-secondary small fw-bold text-uppercase">Vencidos</div>
+                    <div class="h2 fw-bold text-danger mb-0">{{ overdue_list|length }}</div>
+                    <div class="small text-secondary">Día de cobro superado</div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card border-start border-4 border-warning">
+                    <div class="text-secondary small fw-bold text-uppercase">Cobro Hoy</div>
+                    <div class="h2 fw-bold text-warning mb-0">{{ due_today_list|length }}</div>
+                    <div class="small text-secondary">Corresponde hoy día {{ today.day }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card border-start border-4 border-info">
+                    <div class="text-secondary small fw-bold text-uppercase">Próximos (5 días)</div>
+                    <div class="h2 fw-bold text-info mb-0">{{ upcoming_list|length }}</div>
+                    <div class="small text-secondary">Pronto a vencer</div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card border-start border-4 border-success">
+                    <div class="text-secondary small fw-bold text-uppercase">Al Día (Pagados)</div>
+                    <div class="h2 fw-bold text-success mb-0">{{ paid_list|length }}</div>
+                    <div class="small text-secondary">Ya pagaron {{ month_name }}</div>
+                </div>
+            </div>
         </div>
-        {% else %}
-        <div class="p-4 text-center text-muted">
-            <i class="bi bi-check2-all text-success fs-2 d-block mb-1"></i>
-            No tienes clientes con cobros atrasados ni que venzan el día de hoy.
-        </div>
-        {% endif %}
-    </div>
-</div>
 
-<!-- 2. PRÓXIMOS Y PENDIENTES DEL MES -->
-<div class="row g-4">
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="card-title mb-0 fw-bold fs-6 text-primary">
-                    <i class="bi bi-calendar-event me-2"></i>Próximos a Cobrar en el Mes
+        <!-- 1. VENCIDOS Y DE HOY (CLIENTES) -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Cobros Vencidos y que Vencen Hoy
                 </h5>
             </div>
             <div class="card-body p-0">
-                {% if upcoming_list or pending_list %}
+                {% if overdue_list or due_today_list %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-custom">
-                        <thead>
+                        <thead class="table-dark">
                             <tr>
                                 <th class="ps-3">Cliente</th>
-                                <th>Día</th>
-                                <th>A Cobrar</th>
-                                <th class="text-end pe-3">Acción</th>
+                                <th>Contacto</th>
+                                <th>Día Cobro</th>
+                                <th>Estado</th>
+                                <th>Monto Mensual</th>
+                                <th class="text-end pe-3">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in upcoming_list %}
-                            <tr>
+                            {% for item in due_today_list %}
+                            <tr class="table-warning bg-opacity-10">
                                 <td class="ps-3">
-                                    <div class="fw-semibold">{{ item.client.name }}</div>
-                                    <span class="badge bg-info-subtle text-info-emphasis">{{ item.info.label }}</span>
+                                    <div class="fw-bold text-light">{{ item.client.name }}</div>
+                                    {% if item.info.is_partial %}
+                                        <span class="badge bg-warning-subtle text-warning">Abonó ${{ item.info.paid_usd|floatformat:2 }} de ${{ item.client.monthly_fee_usd|floatformat:2 }}</span>
+                                    {% endif %}
                                 </td>
+                                <td>{{ item.client.phone|default:"Sin teléfono" }}</td>
                                 <td>Día {{ item.info.billing_day }}</td>
-                                <td class="fw-bold">${{ item.due_usd|floatformat:2 }}</td>
+                                <td><span class="badge badge-due-today">{{ item.info.label }}</span></td>
+                                <td>
+                                    <div class="fw-bold text-light">${{ item.due_usd|floatformat:2 }} USD</div>
+                                    <div class="small text-secondary">~L {{ item.approx_hnl|floatformat:2 }} HNL</div>
+                                </td>
                                 <td class="text-end pe-3">
-                                    <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-sm btn-outline-primary">Cobrar</a>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-primary">
+                                            <i class="bi bi-receipt me-1"></i>Cobrar
+                                        </a>
+                                        {% if item.whatsapp_url %}
+                                        <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success" title="Enviar WhatsApp">
+                                            <i class="bi bi-whatsapp"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
-                            {% for item in pending_list %}
+
+                            {% for item in overdue_list %}
                             <tr>
                                 <td class="ps-3">
-                                    <div class="fw-semibold">{{ item.client.name }}</div>
-                                    <span class="text-muted small">{{ item.info.label }}</span>
+                                    <div class="fw-bold text-light">{{ item.client.name }}</div>
+                                    {% if item.info.is_partial %}
+                                        <span class="badge bg-warning-subtle text-warning">Abonó ${{ item.info.paid_usd|floatformat:2 }} de ${{ item.client.monthly_fee_usd|floatformat:2 }}</span>
+                                    {% endif %}
                                 </td>
+                                <td>{{ item.client.phone|default:"Sin teléfono" }}</td>
                                 <td>Día {{ item.info.billing_day }}</td>
-                                <td class="fw-bold">${{ item.due_usd|floatformat:2 }}</td>
+                                <td><span class="badge badge-overdue">{{ item.info.label }}</span></td>
+                                <td>
+                                    <div class="fw-bold text-light">${{ item.due_usd|floatformat:2 }} USD</div>
+                                    <div class="small text-secondary">~L {{ item.approx_hnl|floatformat:2 }} HNL</div>
+                                </td>
                                 <td class="text-end pe-3">
-                                    <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-sm btn-outline-secondary">Cobrar</a>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-primary">
+                                            <i class="bi bi-receipt me-1"></i>Cobrar
+                                        </a>
+                                        {% if item.whatsapp_url %}
+                                        <a href="{{ item.whatsapp_url }}" target="_blank" class="btn btn-success" title="Enviar WhatsApp">
+                                            <i class="bi bi-whatsapp"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -191,41 +162,216 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="p-4 text-center text-muted">No hay más cobros programados para el resto del mes.</div>
+                <div class="p-4 text-center text-secondary">
+                    <i class="bi bi-check2-all text-success fs-2 d-block mb-1"></i>
+                    No tienes clientes con cobros atrasados ni que venzan el día de hoy.
+                </div>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- 2. PRÓXIMOS Y PAGADOS (CLIENTES) -->
+        <div class="row g-4">
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                        <h5 class="card-title mb-0 fw-bold fs-6 text-primary">
+                            <i class="bi bi-calendar-event me-2"></i>Próximos a Cobrar en el Mes
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if upcoming_list or pending_list %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 table-custom">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="ps-3">Cliente</th>
+                                        <th>Día</th>
+                                        <th>A Cobrar</th>
+                                        <th class="text-end pe-3">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in upcoming_list %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold text-light">{{ item.client.name }}</div>
+                                            <span class="badge bg-info-subtle text-info border border-info border-opacity-25">{{ item.info.label }}</span>
+                                        </td>
+                                        <td>Día {{ item.info.billing_day }}</td>
+                                        <td class="fw-bold text-light">${{ item.due_usd|floatformat:2 }}</td>
+                                        <td class="text-end pe-3">
+                                            <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-sm btn-outline-primary">Cobrar</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% for item in pending_list %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold text-light">{{ item.client.name }}</div>
+                                            <span class="text-secondary small">{{ item.info.label }}</span>
+                                        </td>
+                                        <td>Día {{ item.info.billing_day }}</td>
+                                        <td class="fw-bold text-light">${{ item.due_usd|floatformat:2 }}</td>
+                                        <td class="text-end pe-3">
+                                            <a href="{% url 'receipt_create' %}?client_id={{ item.client.id }}" class="btn btn-sm btn-outline-secondary">Cobrar</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-secondary">No hay más cobros programados para el resto del mes.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                        <h5 class="card-title mb-0 fw-bold fs-6 text-success">
+                            <i class="bi bi-check-circle me-2"></i>Clientes al Día en {{ month_name }} ({{ paid_list|length }})
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if paid_list %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 table-custom">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="ps-3">Cliente</th>
+                                        <th>Recibo</th>
+                                        <th>Pagado</th>
+                                        <th class="text-end pe-3">Ver</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in paid_list %}
+                                    <tr>
+                                        <td class="ps-3 fw-semibold text-light">{{ item.client.name }}</td>
+                                        <td><span class="badge badge-paid">#{{ item.info.receipt.receipt_number }}</span></td>
+                                        <td class="fw-bold text-success">L {{ item.info.receipt.amount_hnl|floatformat:2 }}</td>
+                                        <td class="text-end pe-3">
+                                            <a href="{% url 'receipt_detail' item.info.receipt.id %}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-secondary">Ningún cliente ha registrado pago aún este mes.</div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 3. PAGADOS ESTE MES -->
-    <div class="col-12 col-lg-6">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="card-title mb-0 fw-bold fs-6 text-success">
-                    <i class="bi bi-check-circle me-2"></i>Clientes al Día en {{ month_name }} ({{ paid_list|length }})
+    <!-- ========================================================================= -->
+    <!-- TAB 2: PAGOS Y SERVICIOS RECURRENTES (LUZ, INTERNET, ETC.) -->
+    <!-- ========================================================================= -->
+    <div class="tab-pane fade" id="recurring-content" role="tabpanel">
+        <!-- Tarjetas Presupuesto Pagos Recurrentes -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card border-start border-4 border-warning">
+                    <div class="text-secondary small fw-bold text-uppercase">Presupuesto del Mes</div>
+                    <div class="h3 fw-bold text-warning mb-0">L {{ rec_budget_hnl|floatformat:2 }}</div>
+                    <div class="small text-secondary">Obligaciones fijas presupuestadas</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-start border-4 border-success">
+                    <div class="text-secondary small fw-bold text-uppercase">Servicios Solventados</div>
+                    <div class="h3 fw-bold text-success mb-0">L {{ rec_paid_hnl|floatformat:2 }}</div>
+                    <div class="small text-secondary">{{ rec_paid_list|length }} servicios ya cancelados</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card border-start border-4 border-danger">
+                    <div class="text-secondary small fw-bold text-uppercase">Pendiente por Pagar</div>
+                    <div class="h3 fw-bold text-danger mb-0">L {{ rec_pending_hnl|floatformat:2 }}</div>
+                    <div class="small text-secondary">Por liquidar en {{ month_name }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. SERVICIOS VENCIDOS Y QUE VENCEN HOY -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 fw-bold fs-6 text-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Pagos Recurrentes Vencidos o que Vencen Hoy
                 </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'recurring_payment_list' %}" class="btn btn-sm btn-outline-warning">Ver Presupuesto</a>
+                    <a href="{% url 'recurring_payment_create' %}" class="btn btn-sm btn-warning"><i class="bi bi-plus-lg me-1"></i>+ Nuevo Servicio</a>
+                </div>
             </div>
             <div class="card-body p-0">
-                {% if paid_list %}
+                {% if rec_overdue_list or rec_due_today_list %}
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0 table-custom">
-                        <thead>
+                        <thead class="table-dark">
                             <tr>
-                                <th class="ps-3">Cliente</th>
-                                <th>Recibo</th>
-                                <th>Pagado</th>
-                                <th class="text-end pe-3">Ver</th>
+                                <th class="ps-3">Servicio</th>
+                                <th>Tipo</th>
+                                <th>Día Pago</th>
+                                <th>Estado</th>
+                                <th>Monto Estimado</th>
+                                <th class="text-end pe-3">Acción</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in paid_list %}
-                            <tr>
-                                <td class="ps-3 fw-semibold">{{ item.client.name }}</td>
-                                <td><span class="badge badge-paid">#{{ item.info.receipt.receipt_number }}</span></td>
-                                <td class="fw-bold text-success">L {{ item.info.receipt.amount_hnl|floatformat:2 }}</td>
+                            {% for r in rec_due_today_list %}
+                            <tr class="table-warning bg-opacity-10">
+                                <td class="ps-3">
+                                    <div class="fw-bold text-light">{{ r.item.title }}</div>
+                                    <small class="text-secondary">{{ r.item.beneficiary|default:"-" }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if r.item.expense_type == 'company' %}bg-primary-subtle text-primary border border-primary border-opacity-25{% else %}bg-warning-subtle text-warning border border-warning border-opacity-25{% endif %}">
+                                        {{ r.item.get_expense_type_display }}
+                                    </span>
+                                </td>
+                                <td>Día {{ r.item.due_day }}</td>
+                                <td><span class="badge bg-warning text-dark fw-bold">Vence Hoy</span></td>
+                                <td>
+                                    <div class="fw-bold text-light">L {{ r.info.estimated_hnl|floatformat:2 }}</div>
+                                    <small class="text-secondary">${{ r.info.estimated_usd|floatformat:2 }} USD</small>
+                                </td>
                                 <td class="text-end pe-3">
-                                    <a href="{% url 'receipt_detail' item.info.receipt.id %}" class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-eye"></i>
+                                    <a href="{% url 'expense_create' %}?recurring_id={{ r.item.id }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-cash me-1"></i>Pagar Ahora
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                            {% for r in rec_overdue_list %}
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-bold text-light">{{ r.item.title }}</div>
+                                    <small class="text-secondary">{{ r.item.beneficiary|default:"-" }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if r.item.expense_type == 'company' %}bg-primary-subtle text-primary border border-primary border-opacity-25{% else %}bg-warning-subtle text-warning border border-warning border-opacity-25{% endif %}">
+                                        {{ r.item.get_expense_type_display }}
+                                    </span>
+                                </td>
+                                <td>Día {{ r.item.due_day }}</td>
+                                <td><span class="badge bg-danger">{{ r.info.label }}</span></td>
+                                <td>
+                                    <div class="fw-bold text-light">L {{ r.info.estimated_hnl|floatformat:2 }}</div>
+                                    <small class="text-secondary">${{ r.info.estimated_usd|floatformat:2 }} USD</small>
+                                </td>
+                                <td class="text-end pe-3">
+                                    <a href="{% url 'expense_create' %}?recurring_id={{ r.item.id }}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-cash me-1"></i>Pagar Ahora
                                     </a>
                                 </td>
                             </tr>
@@ -234,8 +380,114 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="p-4 text-center text-muted">Ningún cliente ha registrado pago aún este mes.</div>
+                <div class="p-4 text-center text-secondary">
+                    <i class="bi bi-check2-circle text-success fs-2 d-block mb-1"></i>
+                    No tienes servicios ni pagos recurrentes atrasados en este momento.
+                </div>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- 2. PRÓXIMOS Y YA PAGADOS (SERVICIOS) -->
+        <div class="row g-4">
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                        <h5 class="card-title mb-0 fw-bold fs-6 text-warning">
+                            <i class="bi bi-clock-history me-2"></i>Próximos Pagos del Mes
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if rec_upcoming_list or rec_pending_list %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 table-custom">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="ps-3">Servicio</th>
+                                        <th>Día</th>
+                                        <th>Estimado</th>
+                                        <th class="text-end pe-3">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in rec_upcoming_list %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold text-light">{{ r.item.title }}</div>
+                                            <span class="badge bg-info text-dark">{{ r.info.label }}</span>
+                                        </td>
+                                        <td>Día {{ r.item.due_day }}</td>
+                                        <td class="fw-bold text-light">L {{ r.info.estimated_hnl|floatformat:2 }}</td>
+                                        <td class="text-end pe-3">
+                                            <a href="{% url 'expense_create' %}?recurring_id={{ r.item.id }}" class="btn btn-sm btn-outline-success">Pagar</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% for r in rec_pending_list %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold text-light">{{ r.item.title }}</div>
+                                            <span class="text-secondary small">{{ r.info.label }}</span>
+                                        </td>
+                                        <td>Día {{ r.item.due_day }}</td>
+                                        <td class="fw-bold text-light">L {{ r.info.estimated_hnl|floatformat:2 }}</td>
+                                        <td class="text-end pe-3">
+                                            <a href="{% url 'expense_create' %}?recurring_id={{ r.item.id }}" class="btn btn-sm btn-outline-secondary">Pagar</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-secondary">No hay pagos adicionales pendientes para los próximos días.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-25 py-3">
+                        <h5 class="card-title mb-0 fw-bold fs-6 text-success">
+                            <i class="bi bi-check-all me-2"></i>Servicios Solventados en {{ month_name }} ({{ rec_paid_list|length }})
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if rec_paid_list %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0 table-custom">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="ps-3">Servicio</th>
+                                        <th>Fecha Pago</th>
+                                        <th>Monto Pagado</th>
+                                        <th class="text-end pe-3">Gasto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in rec_paid_list %}
+                                    <tr>
+                                        <td class="ps-3 fw-semibold text-light">{{ r.item.title }}</td>
+                                        <td class="small text-secondary">{{ r.info.paid_date|date:"d/m/Y" }}</td>
+                                        <td class="fw-bold text-success">L {{ r.info.paid_amount_hnl|floatformat:2 }}</td>
+                                        <td class="text-end pe-3">
+                                            {% if r.info.expense %}
+                                            <a href="{% url 'expense_edit' r.info.expense.id %}" class="btn btn-sm btn-outline-info">
+                                                <i class="bi bi-receipt"></i>
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-4 text-center text-secondary">Aún no se ha marcado ningún servicio recurrente como pagado en este mes.</div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>

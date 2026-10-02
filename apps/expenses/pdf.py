@@ -41,20 +41,29 @@ def generate_financial_report_pdf(company, year, month_name, income_items, expen
     story.append(HRFlowable(width="100%", thickness=1.5, color=primary_color, spaceBefore=8, spaceAfter=14))
 
     # Tarjetas de Resumen
+    rollover_hnl = totals.get('rollover_balance_hnl', Decimal('0.00'))
+    rollover_usd = totals.get('rollover_balance_usd', Decimal('0.00'))
+    avail_hnl = totals.get('total_available_hnl', totals['income_hnl'] + rollover_hnl)
+    avail_usd = totals.get('total_available_usd', totals['income_usd'] + rollover_usd)
+    tot_exp_hnl = totals.get('total_expenses_hnl', totals['exp_comp_hnl'] + totals['exp_pers_hnl'])
+    tot_exp_usd = totals.get('total_expenses_usd', totals['exp_comp_usd'] + totals['exp_pers_usd'])
+    ending_hnl = totals.get('ending_balance_hnl', totals['net_balance_hnl'] + rollover_hnl)
+    ending_usd = totals.get('ending_balance_usd', totals['net_balance_usd'] + rollover_usd)
+
     summary_data = [
         [
-            Paragraph("TOTAL INGRESOS", ParagraphStyle('SH1', fontName='Helvetica-Bold', fontSize=9, textColor=income_color, alignment=TA_CENTER)),
-            Paragraph("GASTOS EMPRESA", ParagraphStyle('SH2', fontName='Helvetica-Bold', fontSize=9, textColor=expense_color, alignment=TA_CENTER)),
-            Paragraph("GASTOS PERSONALES", ParagraphStyle('SH3', fontName='Helvetica-Bold', fontSize=9, textColor=personal_color, alignment=TA_CENTER)),
-            Paragraph("BALANCE OPERATIVO", ParagraphStyle('SH4', fontName='Helvetica-Bold', fontSize=9, textColor=primary_color, alignment=TA_CENTER)),
-            Paragraph("BALANCE NETO FINAL", ParagraphStyle('SH5', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor("#111827"), alignment=TA_CENTER)),
+            Paragraph("SALDO ANTERIOR", ParagraphStyle('SH0', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor("#0284c7"), alignment=TA_CENTER)),
+            Paragraph("TOTAL INGRESOS", ParagraphStyle('SH1', fontName='Helvetica-Bold', fontSize=8, textColor=income_color, alignment=TA_CENTER)),
+            Paragraph("FONDOS DISP.", ParagraphStyle('SH2', fontName='Helvetica-Bold', fontSize=8, textColor=primary_color, alignment=TA_CENTER)),
+            Paragraph("TOTAL GASTOS", ParagraphStyle('SH3', fontName='Helvetica-Bold', fontSize=8, textColor=expense_color, alignment=TA_CENTER)),
+            Paragraph("SALDO REMANENTE", ParagraphStyle('SH4', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor("#047857"), alignment=TA_CENTER)),
         ],
         [
-            Paragraph(f"<b>L {totals['income_hnl']:,.2f}</b><br/><font size='8'>(${totals['income_usd']:,.2f})</font>", ParagraphStyle('SV1', alignment=TA_CENTER)),
-            Paragraph(f"<b>L {totals['exp_comp_hnl']:,.2f}</b><br/><font size='8'>(${totals['exp_comp_usd']:,.2f})</font>", ParagraphStyle('SV2', alignment=TA_CENTER)),
-            Paragraph(f"<b>L {totals['exp_pers_hnl']:,.2f}</b><br/><font size='8'>(${totals['exp_pers_usd']:,.2f})</font>", ParagraphStyle('SV3', alignment=TA_CENTER)),
-            Paragraph(f"<b>L {totals['op_balance_hnl']:,.2f}</b><br/><font size='8'>(${totals['op_balance_usd']:,.2f})</font>", ParagraphStyle('SV4', alignment=TA_CENTER)),
-            Paragraph(f"<b>L {totals['net_balance_hnl']:,.2f}</b><br/><font size='8'>(${totals['net_balance_usd']:,.2f})</font>", ParagraphStyle('SV5', alignment=TA_CENTER)),
+            Paragraph(f"<b>L {rollover_hnl:,.2f}</b><br/><font size='7'>(${rollover_usd:,.2f})</font>", ParagraphStyle('SV0', alignment=TA_CENTER)),
+            Paragraph(f"<b>L {totals['income_hnl']:,.2f}</b><br/><font size='7'>(${totals['income_usd']:,.2f})</font>", ParagraphStyle('SV1', alignment=TA_CENTER)),
+            Paragraph(f"<b>L {avail_hnl:,.2f}</b><br/><font size='7'>(${avail_usd:,.2f})</font>", ParagraphStyle('SV2', alignment=TA_CENTER)),
+            Paragraph(f"<b>L {tot_exp_hnl:,.2f}</b><br/><font size='7'>(${tot_exp_usd:,.2f})</font>", ParagraphStyle('SV3', alignment=TA_CENTER)),
+            Paragraph(f"<b>L {ending_hnl:,.2f}</b><br/><font size='7'>(${ending_usd:,.2f})</font>", ParagraphStyle('SV4', alignment=TA_CENTER)),
         ]
     ]
     summary_table = Table(summary_data, colWidths=[108, 108, 108, 108, 108])
@@ -62,10 +71,60 @@ def generate_financial_report_pdf(company, year, month_name, income_items, expen
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
         ('BOX', (0,0), (-1,-1), 1, border_color),
         ('GRID', (0,0), (-1,-1), 0.5, border_color),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(summary_table)
+    story.append(Spacer(1, 10))
+
+    # Tabla Desglose Conciliación de Saldo (Rollover)
+    reconcil_data = [
+        [
+            Paragraph("<b>Concepto de Conciliación de Balance</b>", ParagraphStyle('RC_H1', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white)),
+            Paragraph("<b>Equiv. Dólares (USD)</b>", ParagraphStyle('RC_H2', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=TA_RIGHT)),
+            Paragraph("<b>Total Lempiras (HNL)</b>", ParagraphStyle('RC_H3', fontName='Helvetica-Bold', fontSize=8, textColor=colors.white, alignment=TA_RIGHT)),
+        ],
+        [
+            Paragraph("<b>(+) Saldo Inicial / Sobrante Acumulado Mes Anterior</b>", styles['Normal']),
+            Paragraph(f"${rollover_usd:,.2f}", ParagraphStyle('R_RC1', alignment=TA_RIGHT)),
+            Paragraph(f"L {rollover_hnl:,.2f}", ParagraphStyle('R_RC2', fontName='Helvetica-Bold', textColor=colors.HexColor("#0284c7"), alignment=TA_RIGHT)),
+        ],
+        [
+            Paragraph("(+) Ingresos del Mes (Recibos cobrados + Ingresos extra)", styles['Normal']),
+            Paragraph(f"${totals['income_usd']:,.2f}", ParagraphStyle('R_RC3', alignment=TA_RIGHT)),
+            Paragraph(f"L {totals['income_hnl']:,.2f}", ParagraphStyle('R_RC4', fontName='Helvetica-Bold', textColor=income_color, alignment=TA_RIGHT)),
+        ],
+        [
+            Paragraph("<b>(=) Total Fondos Disponibles para Operar</b>", styles['Normal']),
+            Paragraph(f"${avail_usd:,.2f}", ParagraphStyle('R_RC5', fontName='Helvetica-Bold', alignment=TA_RIGHT)),
+            Paragraph(f"L {avail_hnl:,.2f}", ParagraphStyle('R_RC6', fontName='Helvetica-Bold', textColor=primary_color, alignment=TA_RIGHT)),
+        ],
+        [
+            Paragraph("(-) Gastos Operativos de Empresa", styles['Normal']),
+            Paragraph(f"-${totals['exp_comp_usd']:,.2f}", ParagraphStyle('R_RC7', alignment=TA_RIGHT)),
+            Paragraph(f"-L {totals['exp_comp_hnl']:,.2f}", ParagraphStyle('R_RC8', alignment=TA_RIGHT)),
+        ],
+        [
+            Paragraph("(-) Gastos Personales / Retiros", styles['Normal']),
+            Paragraph(f"-${totals['exp_pers_usd']:,.2f}", ParagraphStyle('R_RC9', alignment=TA_RIGHT)),
+            Paragraph(f"-L {totals['exp_pers_hnl']:,.2f}", ParagraphStyle('R_RC10', alignment=TA_RIGHT)),
+        ],
+        [
+            Paragraph("<b>(=) Saldo Final Remanente (Pasa al Siguiente Mes)</b>", ParagraphStyle('RC_END', fontName='Helvetica-Bold')),
+            Paragraph(f"<b>${ending_usd:,.2f}</b>", ParagraphStyle('R_RC11', fontName='Helvetica-Bold', alignment=TA_RIGHT)),
+            Paragraph(f"<b>L {ending_hnl:,.2f}</b>", ParagraphStyle('R_RC12', fontName='Helvetica-Bold', textColor=colors.HexColor("#047857"), alignment=TA_RIGHT)),
+        ],
+    ]
+    t_reconcil = Table(reconcil_data, colWidths=[280, 130, 130])
+    t_reconcil.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), primary_color),
+        ('BACKGROUND', (0,3), (-1,3), colors.HexColor("#f1f5f9")),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#ecfdf5")),
+        ('GRID', (0,0), (-1,-1), 0.5, border_color),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_reconcil)
     story.append(Spacer(1, 14))
 
     # 1. Ingresos por Recibos

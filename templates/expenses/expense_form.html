@@ -17,14 +17,24 @@
                 <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
 
-                    <h5 class="fw-bold text-danger border-bottom pb-2 mb-3">
+                    {% if recurring_obj %}
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4 border border-warning border-opacity-50">
+                        <i class="bi bi-calendar-check fs-4"></i>
+                        <div>
+                            <strong>Liquidando Servicio Recurrente:</strong> {{ recurring_obj.title }} (Día límite: {{ recurring_obj.due_day }}).<br/>
+                            <small>Al guardar este registro, el servicio se marcará automáticamente como <strong>Pagado</strong> en el presupuesto de este mes.</small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <h5 class="fw-bold text-danger border-bottom border-secondary border-opacity-25 pb-2 mb-3">
                         <i class="bi bi-tags me-2"></i>Clasificación y Concepto del Gasto
                     </h5>
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Tipo de Gasto (Empresa vs Personal) *</label>
                             {{ form.expense_type }}
-                            <div class="form-text">Diferencia los gastos operativos de la empresa de tus gastos personales.</div>
+                            <div class="form-text text-secondary">Diferencia los gastos operativos de la empresa de tus gastos personales.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Categoría *</label>
@@ -40,15 +50,20 @@
                             {{ form.expense_date }}
                         </div>
                         <div class="col-12">
+                            <label class="form-label fw-semibold">Vincular a Pago Recurrente / Presupuesto (Opcional)</label>
+                            {{ form.recurring_payment }}
+                            <div class="form-text text-secondary">Si este gasto corresponde a un servicio mensual (ej. Luz, Internet), vincúlalo aquí.</div>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label fw-semibold">Descripción / Detalle</label>
                             {{ form.description }}
                         </div>
                     </div>
 
-                    <h5 class="fw-bold text-danger border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-danger border-bottom border-secondary border-opacity-25 pb-2 mb-3">
                         <i class="bi bi-cash-stack me-2"></i>Monto y Conversión Multimoneda
                     </h5>
-                    <div class="row g-3 mb-4 bg-light p-3 rounded-3 border">
+                    <div class="row g-3 mb-4 bg-secondary bg-opacity-10 p-3 rounded-3 border border-secondary border-opacity-25">
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Moneda en que Pagaste *</label>
                             {{ form.currency }}
@@ -63,7 +78,7 @@
                         </div>
                     </div>
 
-                    <h5 class="fw-bold text-danger border-bottom pb-2 mb-3">
+                    <h5 class="fw-bold text-danger border-bottom border-secondary border-opacity-25 pb-2 mb-3">
                         <i class="bi bi-receipt-cutoff me-2"></i>Proveedor y Comprobante
                     </h5>
                     <div class="row g-3 mb-4">

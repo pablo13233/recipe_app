@@ -5,16 +5,19 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Sum
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 
 from .models import Company, ExchangeRateLog
 from .forms import CompanyForm, ExchangeRateForm
-from .services import get_current_exchange_rate, set_manual_exchange_rate
+from .services import (
+    get_current_exchange_rate, set_manual_exchange_rate, 
+    get_month_financial_summary, fetch_live_exchange_rate,
+    sync_company_exchange_rate
+)
 from apps.employees.models import CompanyMembership
 from apps.clients.models import Client
 from apps.receipts.models import Receipt, ExtraIncome
-from apps.expenses.models import Expense
+from apps.expenses.models import Expense, RecurringPayment
 
 
 def landing_view(request):
@@ -58,7 +61,7 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    """Panel principal del sistema."""
+    """Panel principal del sistema con balance acumulado y recordatorios."""
     user = request.user
     
     # Obtener empresas del usuario
@@ -93,51 +96,8 @@ def dashboard_view(request):
     # Correlativo próximo formateado
     next_receipt_number = active_company.get_next_receipt_number_formatted()
 
-    # Recibos del mes actual
-    month_receipts = Receipt.objects.filter(
-        company=active_company,
-        billing_year=current_year,
-        billing_month=current_month,
-        status='paid'
-    )
-    receipt_income_usd = month_receipts.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    receipt_income_hnl = month_receipts.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    # Ingresos Extra / Externos del mes actual (Fuera de cobros mensuales)
-    month_extra_incomes = ExtraIncome.objects.filter(
-        company=active_company,
-        income_date__year=current_year,
-        income_date__month=current_month
-    )
-    extra_income_usd = month_extra_incomes.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    extra_income_hnl = month_extra_incomes.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    income_usd = receipt_income_usd + extra_income_usd
-    income_hnl = receipt_income_hnl + extra_income_hnl
-
-    # Gastos del mes actual (Empresa vs Personal)
-    month_expenses = Expense.objects.filter(
-        company=active_company,
-        expense_date__year=current_year,
-        expense_date__month=current_month
-    )
-    company_expenses = month_expenses.filter(expense_type='company')
-    personal_expenses = month_expenses.filter(expense_type='personal')
-
-    exp_company_usd = company_expenses.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    exp_company_hnl = company_expenses.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    exp_personal_usd = personal_expenses.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    exp_personal_hnl = personal_expenses.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    total_exp_usd = exp_company_usd + exp_personal_usd
-    total_exp_hnl = exp_company_hnl + exp_personal_hnl
-
-    # Balances
-    operational_balance_usd = income_usd - exp_company_usd
-    operational_balance_hnl = income_hnl - exp_company_hnl
-    net_balance_usd = income_usd - total_exp_usd
-    net_balance_hnl = income_hnl - total_exp_hnl
+    # Resumen financiero con arrastre de saldo / sobrante del mes anterior (Rollover)
+    fin_summary = get_month_financial_summary(active_company, current_year, current_month)
 
     # Estado de cobro de clientes para el mes actual
     all_clients = active_company.clients.filter(is_active=True).order_by('billing_day', 'name')
@@ -158,6 +118,24 @@ def dashboard_view(request):
                     'whatsapp_url': client.get_whatsapp_reminder_url(current_rate)
                 })
 
+    # Recordatorios de Pagos Recurrentes (Luz, Internet, etc.) del mes
+    recurring_items = RecurringPayment.objects.filter(company=active_company, is_active=True)
+    urgent_recurring_payments = []
+    recurring_budget_hnl = Decimal('0.00')
+    recurring_paid_hnl = Decimal('0.00')
+
+    for r_item in recurring_items:
+        r_status = r_item.get_status_for_month(current_year, current_month, today=today, current_rate=current_rate)
+        recurring_budget_hnl += r_status['estimated_hnl']
+        if r_status['is_paid']:
+            recurring_paid_hnl += r_status['paid_amount_hnl']
+        else:
+            if r_status['status'] in ['overdue', 'due_today', 'upcoming']:
+                urgent_recurring_payments.append({
+                    'item': r_item,
+                    'status': r_status
+                })
+
     # Últimos recibos emitidos
     latest_receipts = Receipt.objects.filter(company=active_company).order_by('-issue_date', '-sequence_number')[:6]
     
@@ -168,26 +146,40 @@ def dashboard_view(request):
         'company': active_company,
         'current_rate': current_rate,
         'next_receipt_number': next_receipt_number,
-        'income_usd': income_usd,
-        'income_hnl': income_hnl,
-        'receipt_income_usd': receipt_income_usd,
-        'receipt_income_hnl': receipt_income_hnl,
-        'extra_income_usd': extra_income_usd,
-        'extra_income_hnl': extra_income_hnl,
-        'exp_company_usd': exp_company_usd,
-        'exp_company_hnl': exp_company_hnl,
-        'exp_personal_usd': exp_personal_usd,
-        'exp_personal_hnl': exp_personal_hnl,
-        'total_exp_usd': total_exp_usd,
-        'total_exp_hnl': total_exp_hnl,
-        'operational_balance_usd': operational_balance_usd,
-        'operational_balance_hnl': operational_balance_hnl,
-        'net_balance_usd': net_balance_usd,
-        'net_balance_hnl': net_balance_hnl,
+        # Finanzas integradas con arrastre de saldo (rollover)
+        'rollover_balance_usd': fin_summary['rollover_balance_usd'],
+        'rollover_balance_hnl': fin_summary['rollover_balance_hnl'],
+        'total_available_usd': fin_summary['total_available_usd'],
+        'total_available_hnl': fin_summary['total_available_hnl'],
+        'income_usd': fin_summary['month_income_usd'],
+        'income_hnl': fin_summary['month_income_hnl'],
+        'receipt_income_usd': fin_summary['receipt_income_usd'],
+        'receipt_income_hnl': fin_summary['receipt_income_hnl'],
+        'extra_income_usd': fin_summary['extra_income_usd'],
+        'extra_income_hnl': fin_summary['extra_income_hnl'],
+        'exp_company_usd': fin_summary['exp_company_usd'],
+        'exp_company_hnl': fin_summary['exp_company_hnl'],
+        'exp_personal_usd': fin_summary['exp_personal_usd'],
+        'exp_personal_hnl': fin_summary['exp_personal_hnl'],
+        'total_exp_usd': fin_summary['total_expenses_usd'],
+        'total_exp_hnl': fin_summary['total_expenses_hnl'],
+        'operational_balance_usd': fin_summary['operational_balance_usd'],
+        'operational_balance_hnl': fin_summary['operational_balance_hnl'],
+        'net_balance_usd': fin_summary['month_net_balance_usd'],
+        'net_balance_hnl': fin_summary['month_net_balance_hnl'],
+        'ending_balance_usd': fin_summary['ending_balance_usd'],
+        'ending_balance_hnl': fin_summary['ending_balance_hnl'],
+        # Clientes
         'paid_count': paid_count,
         'pending_count': pending_count,
         'total_clients': all_clients.count(),
         'urgent_reminders': urgent_reminders[:8],
+        # Pagos recurrentes
+        'urgent_recurring_payments': urgent_recurring_payments[:6],
+        'recurring_budget_hnl': recurring_budget_hnl,
+        'recurring_paid_hnl': recurring_paid_hnl,
+        'recurring_pending_hnl': recurring_budget_hnl - recurring_paid_hnl,
+        # Movimientos recientes
         'latest_receipts': latest_receipts,
         'latest_expenses': latest_expenses,
         'current_month_name': Receipt.MONTH_NAMES.get(current_month, ''),
@@ -227,7 +219,6 @@ def company_create_view(request):
         form = CompanyForm(request.POST, request.FILES)
         if form.is_valid():
             company = form.save()
-            # Asociar al usuario actual como admin de esta empresa
             CompanyMembership.objects.get_or_create(
                 user=request.user,
                 company=company,
@@ -266,9 +257,11 @@ def update_exchange_rate_view(request):
     """Actualiza manualmente la tasa de cambio para hoy."""
     if request.method == 'POST':
         rate_val = request.POST.get('rate')
+        active_company_id = request.session.get('active_company_id')
+        company = Company.objects.filter(id=active_company_id).first()
         if rate_val:
             try:
-                new_rate = set_manual_exchange_rate(rate_val)
+                new_rate = set_manual_exchange_rate(rate_val, company=company)
                 messages.success(request, f"Tasa de cambio actualizada para hoy: $1 USD = L {new_rate:,.4f} HNL")
             except Exception as e:
                 messages.error(request, f"Error al actualizar tasa: {e}")
@@ -279,29 +272,70 @@ def update_exchange_rate_view(request):
 
 
 @login_required
+def sync_exchange_rate_now_view(request):
+    """
+    Sincroniza en el momento la tasa de cambio con la API para la empresa activa bajo demanda manual.
+    """
+    active_company_id = request.session.get('active_company_id')
+    company = Company.objects.filter(id=active_company_id).first()
+    if not company:
+        messages.error(request, "No hay una empresa activa seleccionada.")
+        return redirect('dashboard')
+
+    rate, updated, msg = sync_company_exchange_rate(company, force=True)
+    if updated:
+        messages.success(request, f"Tasa de cambio sincronizada exitosamente desde la API: $1 USD = L {rate:,.4f} HNL")
+    else:
+        messages.warning(request, f"Aviso de sincronización: {msg}")
+
+    next_url = request.META.get('HTTP_REFERER') or 'dashboard'
+    return redirect(next_url)
+
+
+@login_required
+def test_exchange_rate_api_view(request):
+    """
+    Endpoint AJAX para probar la conectividad y respuesta de un endpoint o API Key de tipo de cambio.
+    Recibe por POST o GET 'api_url' y 'api_key'.
+    """
+    if request.method not in ['POST', 'GET']:
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+    api_url = request.POST.get('api_url') or request.GET.get('api_url') or ''
+    api_key = request.POST.get('api_key') or request.GET.get('api_key') or ''
+
+    rate, error, raw = fetch_live_exchange_rate(
+        custom_url=api_url if api_url.strip() else None,
+        custom_api_key=api_key if api_key.strip() else None,
+        return_detail=True
+    )
+
+    if rate is not None:
+        return JsonResponse({
+            'success': True,
+            'rate': str(rate),
+            'formatted_rate': f"$1 USD = L {rate:,.4f} HNL",
+            'message': f"¡Conexión exitosa! Tasa obtenida en tiempo real: $1 USD = L {rate:,.4f} HNL"
+        })
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': error or "No se pudo obtener la tasa desde el endpoint proporcionado."
+        })
+
+
+@login_required
 def reports_view(request):
-    """Centro de reportes interactivos mensuales y estados financieros."""
+    """Centro de reportes interactivos mensuales y estados financieros con arrastre de saldo."""
     active_company_id = request.session.get('active_company_id')
     company = get_object_or_404(Company, id=active_company_id)
 
     today = timezone.localdate()
+    current_rate = get_current_exchange_rate(company)
     selected_year = int(request.GET.get('year', today.year))
     selected_month = int(request.GET.get('month', today.month))
 
-    # Recibos pagados en el periodo
-    paid_receipts = Receipt.objects.filter(
-        company=company,
-        billing_year=selected_year,
-        billing_month=selected_month,
-        status='paid'
-    ).select_related('client').order_by('sequence_number')
-
-    # Ingresos Extra y Externos del periodo
-    extra_incomes = ExtraIncome.objects.filter(
-        company=company,
-        income_date__year=selected_year,
-        income_date__month=selected_month
-    ).select_related('client').order_by('-income_date')
+    fin_summary = get_month_financial_summary(company, selected_year, selected_month)
 
     all_active_clients = company.clients.filter(is_active=True).order_by('billing_day', 'name')
     pending_clients = []
@@ -311,37 +345,18 @@ def reports_view(request):
             c.remaining_period_usd = c.get_remaining_balance_for_period(selected_year, selected_month)
             pending_clients.append(c)
 
-    # Totales de ingresos (Recibos + Ingresos Extra/Externos)
-    receipt_income_usd = paid_receipts.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    receipt_income_hnl = paid_receipts.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    extra_income_usd = extra_incomes.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    extra_income_hnl = extra_incomes.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    total_income_usd = receipt_income_usd + extra_income_usd
-    total_income_hnl = receipt_income_hnl + extra_income_hnl
-
-    # Gastos en ese mes
-    month_expenses = Expense.objects.filter(
-        company=company,
-        expense_date__year=selected_year,
-        expense_date__month=selected_month
-    ).order_by('-expense_date')
-
-    expense_company = month_expenses.filter(expense_type='company')
-    expense_personal = month_expenses.filter(expense_type='personal')
-
-    exp_comp_usd = expense_company.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    exp_comp_hnl = expense_company.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    exp_pers_usd = expense_personal.aggregate(total=Sum('amount_usd'))['total'] or Decimal('0.00')
-    exp_pers_hnl = expense_personal.aggregate(total=Sum('amount_hnl'))['total'] or Decimal('0.00')
-
-    total_exp_usd = exp_comp_usd + exp_pers_usd
-    total_exp_hnl = exp_comp_hnl + exp_pers_hnl
-
-    net_balance_usd = total_income_usd - total_exp_usd
-    net_balance_hnl = total_income_hnl - total_exp_hnl
+    # Pagos recurrentes en este mes
+    recurring_items = RecurringPayment.objects.filter(company=company)
+    recurring_data = []
+    budget_tot_hnl = Decimal('0.00')
+    budget_paid_hnl = Decimal('0.00')
+    for r in recurring_items:
+        r_stat = r.get_status_for_month(selected_year, selected_month, today=today, current_rate=current_rate)
+        recurring_data.append({'item': r, 'status': r_stat})
+        if r.is_active:
+            budget_tot_hnl += r_stat['estimated_hnl']
+            if r_stat['is_paid']:
+                budget_paid_hnl += r_stat['paid_amount_hnl']
 
     years_range = list(range(today.year - 4, today.year + 2))
     month_name = Receipt.MONTH_NAMES.get(selected_month, str(selected_month))
@@ -353,40 +368,52 @@ def reports_view(request):
         'month_name': month_name,
         'months': Receipt.MONTH_NAMES.items(),
         'years_range': years_range,
-        'paid_receipts': paid_receipts,
-        'extra_incomes': extra_incomes,
+        'paid_receipts': fin_summary['current_receipts'],
+        'extra_incomes': fin_summary['current_extra_incomes'],
         'pending_clients': pending_clients,
-        'receipt_income_usd': receipt_income_usd,
-        'receipt_income_hnl': receipt_income_hnl,
-        'extra_income_usd': extra_income_usd,
-        'extra_income_hnl': extra_income_hnl,
-        'total_income_usd': total_income_usd,
-        'total_income_hnl': total_income_hnl,
-        'expense_company': expense_company,
-        'expense_personal': expense_personal,
-        'exp_comp_usd': exp_comp_usd,
-        'exp_comp_hnl': exp_comp_hnl,
-        'exp_pers_usd': exp_pers_usd,
-        'exp_pers_hnl': exp_pers_hnl,
-        'total_exp_usd': total_exp_usd,
-        'total_exp_hnl': total_exp_hnl,
-        'net_balance_usd': net_balance_usd,
-        'net_balance_hnl': net_balance_hnl,
+        'recurring_data': recurring_data,
+        'budget_tot_hnl': budget_tot_hnl,
+        'budget_paid_hnl': budget_paid_hnl,
+        # Balances y arrastre
+        'rollover_balance_usd': fin_summary['rollover_balance_usd'],
+        'rollover_balance_hnl': fin_summary['rollover_balance_hnl'],
+        'total_available_usd': fin_summary['total_available_usd'],
+        'total_available_hnl': fin_summary['total_available_hnl'],
+        'receipt_income_usd': fin_summary['receipt_income_usd'],
+        'receipt_income_hnl': fin_summary['receipt_income_hnl'],
+        'extra_income_usd': fin_summary['extra_income_usd'],
+        'extra_income_hnl': fin_summary['extra_income_hnl'],
+        'total_income_usd': fin_summary['month_income_usd'],
+        'total_income_hnl': fin_summary['month_income_hnl'],
+        'expense_company': fin_summary['expense_company_items'],
+        'expense_personal': fin_summary['expense_personal_items'],
+        'exp_comp_usd': fin_summary['exp_company_usd'],
+        'exp_comp_hnl': fin_summary['exp_company_hnl'],
+        'exp_pers_usd': fin_summary['exp_personal_usd'],
+        'exp_pers_hnl': fin_summary['exp_personal_hnl'],
+        'total_exp_usd': fin_summary['total_expenses_usd'],
+        'total_exp_hnl': fin_summary['total_expenses_hnl'],
+        'operational_balance_usd': fin_summary['operational_balance_usd'],
+        'operational_balance_hnl': fin_summary['operational_balance_hnl'],
+        'net_balance_usd': fin_summary['month_net_balance_usd'],
+        'net_balance_hnl': fin_summary['month_net_balance_hnl'],
+        'ending_balance_usd': fin_summary['ending_balance_usd'],
+        'ending_balance_hnl': fin_summary['ending_balance_hnl'],
     }
     return render(request, 'core/reports.html', context)
 
 
 @login_required
 def reminders_view(request):
-    """Centro de recordatorios de cobro a clientes."""
+    """Centro de recordatorios: cobros a clientes y pagos recurrentes de la empresa (luz, internet, etc.)."""
     active_company_id = request.session.get('active_company_id')
     company = get_object_or_404(Company, id=active_company_id)
 
     today = timezone.localdate()
     current_rate = get_current_exchange_rate(company)
 
+    # 1. Cobros a Clientes
     clients = company.clients.filter(is_active=True).order_by('billing_day', 'name')
-    
     overdue_list = []
     due_today_list = []
     upcoming_list = []
@@ -414,15 +441,58 @@ def reminders_view(request):
         else:
             pending_list.append(data)
 
+    # 2. Pagos Recurrentes / Cuentas por Pagar (Luz, Internet, Alquiler, etc.)
+    recurring_items = RecurringPayment.objects.filter(company=company, is_active=True).order_by('due_day', 'title')
+    rec_overdue_list = []
+    rec_due_today_list = []
+    rec_upcoming_list = []
+    rec_pending_list = []
+    rec_paid_list = []
+
+    rec_budget_hnl = Decimal('0.00')
+    rec_paid_hnl = Decimal('0.00')
+    rec_pending_hnl = Decimal('0.00')
+
+    for r in recurring_items:
+        r_info = r.get_status_for_month(today.year, today.month, today=today, current_rate=current_rate)
+        r_data = {
+            'item': r,
+            'info': r_info,
+        }
+        rec_budget_hnl += r_info['estimated_hnl']
+        if r_info['is_paid']:
+            rec_paid_hnl += r_info['paid_amount_hnl']
+            rec_paid_list.append(r_data)
+        else:
+            rec_pending_hnl += r_info['estimated_hnl']
+            if r_info['status'] == 'overdue':
+                rec_overdue_list.append(r_data)
+            elif r_info['status'] == 'due_today':
+                rec_due_today_list.append(r_data)
+            elif r_info['status'] == 'upcoming':
+                rec_upcoming_list.append(r_data)
+            else:
+                rec_pending_list.append(r_data)
+
     context = {
         'company': company,
         'today': today,
         'current_rate': current_rate,
+        # Clientes
         'overdue_list': overdue_list,
         'due_today_list': due_today_list,
         'upcoming_list': upcoming_list,
         'pending_list': pending_list,
         'paid_list': paid_list,
+        # Pagos recurrentes
+        'rec_overdue_list': rec_overdue_list,
+        'rec_due_today_list': rec_due_today_list,
+        'rec_upcoming_list': rec_upcoming_list,
+        'rec_pending_list': rec_pending_list,
+        'rec_paid_list': rec_paid_list,
+        'rec_budget_hnl': rec_budget_hnl,
+        'rec_paid_hnl': rec_paid_hnl,
+        'rec_pending_hnl': rec_pending_hnl,
         'month_name': Receipt.MONTH_NAMES.get(today.month, ''),
     }
     return render(request, 'core/reminders.html', context)

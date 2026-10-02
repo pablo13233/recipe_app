@@ -288,3 +288,196 @@ class RecipeAppIntegrationTests(TestCase):
         self.assertEqual(resp_fin_pdf.status_code, 200)
         self.assertEqual(resp_fin_pdf['Content-Type'], 'application/pdf')
 
+    def test_rollover_balance_from_previous_months(self):
+        """Verifica que el sobrante positivo de meses anteriores entra al balance del mes siguiente."""
+        import datetime
+        from apps.core.services import get_month_financial_summary
+
+        # Configurar saldo inicial opcional en la empresa
+        self.company.initial_balance_hnl = Decimal('1000.00')
+        self.company.initial_balance_usd = Decimal('40.00')
+        self.company.save()
+
+        # En enero (mes 1): Cobro de recibo L 5000 y Gasto L 2000 -> Sobrante neto del mes = +L 3000
+        Receipt.objects.create(
+            company=self.company,
+            client=self.client_model,
+            issue_date=datetime.date(2026, 1, 10),
+            billing_month=1,
+            billing_year=2026,
+            concept='Servicio Enero',
+            amount_usd=Decimal('200.00'),
+            exchange_rate=Decimal('25.0000'), # L 5000
+            created_by=self.user
+        )
+        Expense.objects.create(
+            company=self.company,
+            expense_type='company',
+            category='services',
+            title='Gasto Enero',
+            expense_date=datetime.date(2026, 1, 15),
+            currency='HNL',
+            amount=Decimal('2000.00'),
+            exchange_rate=Decimal('25.0000')
+        )
+
+        # En febrero (mes 2):
+        # El saldo inicial arrastrado debe ser: 1000 (saldo base) + 5000 (ingresos enero) - 2000 (gastos enero) = L 4000.00
+        summary_feb = get_month_financial_summary(self.company, 2026, 2)
+        self.assertEqual(summary_feb['rollover_balance_hnl'], Decimal('4000.00'))
+
+        # En febrero se reciben L 3000 y se gastan L 1000
+        Receipt.objects.create(
+            company=self.company,
+            client=self.client_model,
+            issue_date=datetime.date(2026, 2, 5),
+            billing_month=2,
+            billing_year=2026,
+            concept='Servicio Febrero',
+            amount_usd=Decimal('120.00'),
+            exchange_rate=Decimal('25.0000'), # L 3000
+            created_by=self.user
+        )
+        Expense.objects.create(
+            company=self.company,
+            expense_type='company',
+            category='services',
+            title='Gasto Febrero',
+            expense_date=datetime.date(2026, 2, 10),
+            currency='HNL',
+            amount=Decimal('1000.00'),
+            exchange_rate=Decimal('25.0000')
+        )
+
+        # Recalcular febrero
+        summary_feb = get_month_financial_summary(self.company, 2026, 2)
+        self.assertEqual(summary_feb['rollover_balance_hnl'], Decimal('4000.00'))
+        self.assertEqual(summary_feb['month_income_hnl'], Decimal('3000.00'))
+        self.assertEqual(summary_feb['total_available_hnl'], Decimal('7000.00')) # 4000 + 3000
+        self.assertEqual(summary_feb['total_expenses_hnl'], Decimal('1000.00'))
+        self.assertEqual(summary_feb['ending_balance_hnl'], Decimal('6000.00')) # 7000 - 1000
+
+        # En marzo (mes 3), el sobrante arrastrado debe ser exactamente L 6000.00
+        summary_mar = get_month_financial_summary(self.company, 2026, 3)
+        self.assertEqual(summary_mar['rollover_balance_hnl'], Decimal('6000.00'))
+
+    def test_recurring_payments_lifecycle_and_budgeting(self):
+        """Verifica la configuración, monitoreo y pago de servicios recurrentes (luz, internet, etc.)."""
+        import datetime
+        from apps.expenses.models import RecurringPayment
+
+        rec_payment = RecurringPayment.objects.create(
+            company=self.company,
+            title='Energía Eléctrica ENEE',
+            category='services',
+            expense_type='company',
+            due_day=15,
+            currency='HNL',
+            estimated_amount=Decimal('1500.00'),
+            beneficiary='ENEE',
+            service_code='CLAVE-123456'
+        )
+
+        # Status antes de pagar
+        status_before = rec_payment.get_status_for_month(2026, 3, today=datetime.date(2026, 3, 10))
+        self.assertFalse(status_before['is_paid'])
+        self.assertEqual(status_before['status'], 'upcoming') # Faltan 5 días para el día 15
+
+        # Registrar el pago como gasto enlazado
+        Expense.objects.create(
+            company=self.company,
+            recurring_payment=rec_payment,
+            title='Pago Energía Eléctrica ENEE (Marzo 2026)',
+            category='services',
+            expense_type='company',
+            expense_date=datetime.date(2026, 3, 12),
+            currency='HNL',
+            amount=Decimal('1480.00'),
+            exchange_rate=Decimal('24.8000')
+        )
+
+        # Status después de pagar
+        status_after = rec_payment.get_status_for_month(2026, 3, today=datetime.date(2026, 3, 12))
+        self.assertTrue(status_after['is_paid'])
+        self.assertEqual(status_after['status'], 'paid')
+        self.assertEqual(status_after['paid_amount_hnl'], Decimal('1480.00'))
+
+        # Probar vistas de pagos recurrentes
+        self.http_client.login(username='testuser', password='password123')
+        self.http_client.get(reverse('dashboard'))
+
+        resp_list = self.http_client.get(reverse('recurring_payment_list'))
+        self.assertEqual(resp_list.status_code, 200)
+        self.assertContains(resp_list, 'Energía Eléctrica ENEE')
+
+        resp_reminders = self.http_client.get(reverse('reminders'))
+        self.assertEqual(resp_reminders.status_code, 200)
+        self.assertContains(resp_reminders, 'Energía Eléctrica ENEE')
+
+    def test_exchange_rate_configuration_and_live_test_endpoint(self):
+        """Verifica la configuración de API de divisas y el endpoint de prueba."""
+        self.http_client.login(username='testuser', password='password123')
+        session = self.http_client.session
+        session['active_company_id'] = self.company.id
+        session.save()
+
+        # 1. Verificar guardado de configuración de API en Company
+        edit_url = reverse('company_edit', kwargs={'pk': self.company.pk})
+        post_data = {
+            'name': 'Empresa Test con API',
+            'legal_name': self.company.legal_name,
+            'tax_id': '08019999888877',
+            'address': self.company.address,
+            'phone': self.company.phone,
+            'email': self.company.email,
+            'receipt_start_number': 1,
+            'receipt_padding': 4,
+            'receipt_footer_note': 'Nota de prueba',
+            'default_exchange_rate': '24.9500',
+            'exchange_rate_api_url': 'https://v6.exchangerate-api.com/v6/{api_key}/latest/USD',
+            'exchange_rate_api_key': 'test-fake-key-123',
+            'exchange_rate_auto_update': True,
+            'initial_balance_hnl': '500.00',
+            'initial_balance_usd': '50.00',
+            'is_active': True,
+        }
+        resp = self.http_client.post(edit_url, post_data)
+        self.assertEqual(resp.status_code, 302)
+
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.exchange_rate_api_url, 'https://v6.exchangerate-api.com/v6/{api_key}/latest/USD')
+        self.assertEqual(self.company.exchange_rate_api_key, 'test-fake-key-123')
+        self.assertTrue(self.company.exchange_rate_auto_update)
+        self.assertEqual(self.company.default_exchange_rate, Decimal('24.9500'))
+
+        # 2. Verificar llamada al endpoint AJAX de prueba (test_exchange_rate_api)
+        test_url = reverse('test_exchange_rate_api')
+        # Probar con endpoint simulado o URL
+        resp_test = self.http_client.post(test_url, {
+            'api_url': 'https://open.er-api.com/v6/latest/USD',
+            'api_key': ''
+        })
+        self.assertEqual(resp_test.status_code, 200)
+        json_data = resp_test.json()
+        self.assertIn('success', json_data)
+
+        # 3. Probar que al emitir recibo con tasa manual específica, se guarda exactamente esa tasa
+        receipt_post = {
+            'client': self.client_model.id,
+            'issue_date': timezone.localdate(),
+            'billing_month': 5,
+            'billing_year': 2026,
+            'concept': 'Cobro con tasa manual personalizada',
+            'amount_usd': '100.00',
+            'exchange_rate': '25.1234',  # Tasa manual diferente
+            'amount_hnl': '2512.34',
+        }
+        resp_receipt = self.http_client.post(reverse('receipt_create'), receipt_post)
+        self.assertEqual(resp_receipt.status_code, 302)
+
+        created_receipt = Receipt.objects.get(concept='Cobro con tasa manual personalizada')
+        self.assertEqual(created_receipt.exchange_rate, Decimal('25.1234'))
+        self.assertEqual(created_receipt.amount_hnl, Decimal('2512.34'))
+
+
+

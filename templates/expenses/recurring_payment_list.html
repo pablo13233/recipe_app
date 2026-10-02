@@ -1,0 +1,250 @@
+{% extends 'base/app_layout.html' %}
+
+{% block title %}Pagos Recurrentes & Presupuesto | {{ company.name }}{% endblock %}
+
+{% block content %}
+<!-- ENCABEZADO Y BOTÓN NUEVO PAGO RECURRENTE -->
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1"><i class="bi bi-calendar-check text-warning me-2"></i>Pagos y Servicios Recurrentes</h1>
+        <p class="text-secondary mb-0 small">Administra tus servicios mensuales (luz, agua, internet, renta) para presupuestar el mes y activar recordatorios automáticos.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'recurring_payment_create' %}" class="btn btn-warning fw-semibold shadow-sm d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>+ Configurar Nuevo Pago Recurrente</span>
+        </a>
+    </div>
+</div>
+
+<!-- FILTRO DE PERIODO -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <span class="text-secondary small fw-semibold"><i class="bi bi-calendar3 me-1"></i>Periodo de Presupuesto:</span>
+            </div>
+            <div class="col-auto">
+                <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                    {% for m_num, m_label in months %}
+                        <option value="{{ m_num }}" {% if selected_month == m_num %}selected{% endif %}>{{ m_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                    {% for y in years %}
+                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto ms-auto">
+                <span class="badge bg-secondary-subtle text-secondary border">
+                    Tasa aplicada: $1 USD = L {{ current_rate|floatformat:4 }} HNL
+                </span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TARJETAS DE RESUMEN PRESUPUESTARIO -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-secondary small fw-semibold text-uppercase">Presupuesto del Mes</span>
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-2 text-warning">
+                        <i class="bi bi-calculator fs-5"></i>
+                    </div>
+                </div>
+                <h4 class="fw-bold mb-1 text-light">L {{ budget_total_hnl|floatformat:2 }}</h4>
+                <div class="text-secondary small">${{ budget_total_usd|floatformat:2 }} USD estimado</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-secondary small fw-semibold text-uppercase">Ya Pagado en {{ month_name }}</span>
+                    <div class="rounded-circle bg-success bg-opacity-10 p-2 text-success">
+                        <i class="bi bi-check2-circle fs-5"></i>
+                    </div>
+                </div>
+                <h4 class="fw-bold mb-1 text-success">L {{ paid_total_hnl|floatformat:2 }}</h4>
+                <div class="text-secondary small">${{ paid_total_usd|floatformat:2 }} USD cubiertos</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-secondary small fw-semibold text-uppercase">Pendiente / Por Pagar</span>
+                    <div class="rounded-circle bg-danger bg-opacity-10 p-2 text-danger">
+                        <i class="bi bi-hourglass-split fs-5"></i>
+                    </div>
+                </div>
+                <h4 class="fw-bold mb-1 text-danger">L {{ pending_total_hnl|floatformat:2 }}</h4>
+                <div class="text-secondary small">${{ pending_total_usd|floatformat:2 }} USD por liquidar</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LISTADO DE SERVICIOS Y PAGOS RECURRENTES -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent py-3 d-flex align-items-center justify-content-between border-secondary border-opacity-25">
+        <h6 class="mb-0 fw-bold">
+            <i class="bi bi-list-check me-2 text-warning"></i>Obligaciones y Servicios Programados para {{ month_name }} {{ selected_year }}
+        </h6>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary">{{ detailed_items|length }} Registrados</span>
+            <a href="{% url 'recurring_payment_create' %}" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-plus-lg me-1"></i>+ Agregar Servicio
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 70px;" class="text-center">Día</th>
+                    <th>Concepto / Servicio</th>
+                    <th>Tipo & Categoría</th>
+                    <th>Beneficiario / Cuenta</th>
+                    <th class="text-end">Monto Estimado</th>
+                    <th class="text-center">Estado del Mes</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in detailed_items %}
+                <tr class="{% if not row.item.is_active %}opacity-50{% endif %}">
+                    <td class="text-center">
+                        <div class="p-1 rounded bg-secondary bg-opacity-25 fw-bold text-light">
+                            {{ row.item.due_day }}
+                        </div>
+                        <small class="text-secondary" style="font-size: 0.7rem;">de cada mes</small>
+                    </td>
+
+                    <td>
+                        <div class="fw-bold text-light">{{ row.item.title }}</div>
+                        {% if row.item.notes %}
+                            <small class="text-secondary text-truncate d-block" style="max-width: 250px;">{{ row.item.notes }}</small>
+                        {% endif %}
+                        {% if not row.item.is_active %}
+                            <span class="badge bg-secondary text-light mt-1">Inactivo para presupuesto</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <div class="small">
+                            {% if row.item.expense_type == 'company' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary border-opacity-25">Empresa</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning border-opacity-25">Personal</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-secondary small mt-1">{{ row.item.get_category_display }}</div>
+                    </td>
+
+                    <td>
+                        <div class="fw-semibold text-light">{{ row.item.beneficiary|default:"-" }}</div>
+                        {% if row.item.service_code %}
+                            <small class="text-info font-monospace"><i class="bi bi-tag me-1"></i>{{ row.item.service_code }}</small>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-end">
+                        <div class="fw-bold text-light">
+                            {% if row.item.currency == 'USD' %}
+                                ${{ row.item.estimated_amount|floatformat:2 }} <small class="text-secondary">USD</small>
+                                <div class="text-secondary small">~ L {{ row.status.estimated_hnl|floatformat:2 }}</div>
+                            {% else %}
+                                L {{ row.item.estimated_amount|floatformat:2 }} <small class="text-secondary">HNL</small>
+                                <div class="text-secondary small">~ ${{ row.status.estimated_usd|floatformat:2 }}</div>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <td class="text-center">
+                        {% if row.status.is_paid %}
+                            <span class="badge bg-success-subtle text-success border border-success border-opacity-25 p-2">
+                                <i class="bi bi-check-circle-fill me-1"></i>Pagado
+                            </span>
+                            <div class="small text-secondary mt-1">
+                                L {{ row.status.paid_amount_hnl|floatformat:2 }} ({{ row.status.paid_date|date:"d/m/Y" }})
+                            </div>
+                        {% elif row.status.status == 'overdue' %}
+                            <span class="badge bg-danger p-2 animate__animated animate__pulse animate__infinite">
+                                <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ row.status.label }}
+                            </span>
+                        {% elif row.status.status == 'due_today' %}
+                            <span class="badge bg-warning text-dark p-2 fw-bold">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Vence Hoy
+                            </span>
+                        {% elif row.status.status == 'upcoming' %}
+                            <span class="badge bg-info text-dark p-2">
+                                <i class="bi bi-clock-history me-1"></i>{{ row.status.label }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border p-2">
+                                <i class="bi bi-calendar-event me-1"></i>{{ row.status.label }}
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            {% if not row.status.is_paid %}
+                                <a href="{% url 'expense_create' %}?recurring_id={{ row.item.id }}" class="btn btn-success" title="Registrar Pago y Factura">
+                                    <i class="bi bi-cash me-1"></i>Pagar
+                                </a>
+                            {% else %}
+                                {% if row.status.expense %}
+                                    <a href="{% url 'expense_edit' row.status.expense.id %}" class="btn btn-outline-info" title="Ver / Editar Gasto Pagado">
+                                        <i class="bi bi-receipt"></i>
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+                            <a href="{% url 'recurring_payment_edit' row.item.id %}" class="btn btn-outline-secondary" title="Editar Configuración">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'recurring_payment_delete' row.item.id %}" class="btn btn-outline-danger" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-secondary">
+                        <i class="bi bi-calendar-x fs-1 d-block mb-3 opacity-50"></i>
+                        <h5>No hay servicios recurrentes registrados</h5>
+                        <p class="small mb-3">Registra los pagos fijos de cada mes (energía eléctrica, internet, alquiler, etc.) para presupuestar y emitir recordatorios.</p>
+                        <a href="{% url 'recurring_payment_create' %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Configurar Primer Pago Recurrente
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- INFORMACIÓN METODOLOGÍA PRESUPUESTARIA -->
+<div class="card border-0 shadow-sm bg-dark-subtle border-start border-info border-3">
+    <div class="card-body p-3">
+        <h6 class="fw-bold text-info mb-1"><i class="bi bi-info-circle me-1"></i>¿Cómo funciona el presupuesto y los recordatorios de pagos?</h6>
+        <p class="text-secondary small mb-0">
+            Cada servicio recurrente configurado aquí representa una obligación mensual de tu empresa o de tus gastos personales. Al llegar el mes correspondiente, el sistema vigila automáticamente la fecha de vencimiento y te emite recordatorios en el Panel Principal y en la sección de Recordatorios. Al hacer clic en <strong>"Pagar"</strong>, se genera el gasto en la bitácora con los datos y tasas correspondientes, marcando el servicio como solventado en el periodo.
+        </p>
+    </div>
+</div>
+{% endblock %}

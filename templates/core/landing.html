@@ -3,9 +3,9 @@
 {% block title %}RecipeApp | Control Profesional de Recibos, Cobros y Gastos{% endblock %}
 
 {% block root_content %}
-<div class="min-vh-100 d-flex flex-column bg-light">
+<div class="min-vh-100 d-flex flex-column" style="background-color: #0b1120; color: #e2e8f0;">
     <!-- Navbar Pública -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3 shadow-sm sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark py-3 shadow-sm sticky-top border-bottom border-secondary border-opacity-25" style="background-color: #070b14;">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-2 fw-bold fs-4 text-white" href="{% url 'landing' %}">
                 <i class="bi bi-receipt-cutoff text-info fs-3"></i>
@@ -24,17 +24,17 @@
     </nav>
 
     <!-- Hero Section -->
-    <header class="py-5 py-lg-6 text-white" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);">
+    <header class="py-5 py-lg-6 text-white border-bottom border-secondary border-opacity-25" style="background: radial-gradient(circle at top right, #1e3a8a 0%, #0b1120 70%);">
         <div class="container py-4">
             <div class="row align-items-center gy-4">
                 <div class="col-lg-7 text-center text-lg-start">
-                    <div class="badge bg-info text-dark px-3 py-2 rounded-pill fw-bold mb-3">
+                    <div class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-50 px-3 py-2 rounded-pill fw-bold mb-3">
                         <i class="bi bi-stars me-1"></i> Sistema Integral de Cobranza & Finanzas
                     </div>
-                    <h1 class="display-4 fw-bold lh-tight mb-3">
+                    <h1 class="display-4 fw-bold lh-tight mb-3 text-white">
                         Control de Recibos, Cobros a Clientes y Bitácora de Gastos
                     </h1>
-                    <p class="lead text-light text-opacity-90 mb-4">
+                    <p class="lead text-secondary mb-4" style="color: #cbd5e1 !important;">
                         Emite recibos automáticos con formato <strong>0001</strong> configurable, registra cuotas en dólares con conversión a lempiras, monitorea recordatorios de cobro y balancea gastos personales versus ingresos de tu empresa.
                     </p>
                     <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start">
@@ -47,33 +47,29 @@
                     </div>
                 </div>
 
-                <!-- Card visual ilustrativa -->
+                <!-- Card visual ilustrativa en modo oscuro -->
                 <div class="col-lg-5">
-                    <div class="card bg-white text-dark shadow-lg border-0 rounded-4 p-3 p-md-4">
-                        <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                    <div class="card text-light shadow-lg border border-secondary border-opacity-25 rounded-4 p-3 p-md-4" style="background-color: #111827;">
+                        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary border-opacity-25 pb-3 mb-3">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge bg-primary fs-6">Recibo #0001</span>
-                                <span class="badge bg-success-subtle text-success">Pagado</span>
+                                <span class="badge badge-paid">Comprobante Registrado</span>
                             </div>
-                            <span class="text-muted small">Mes Actual</span>
+                            <span class="text-secondary small">Mes Actual</span>
                         </div>
                         <div class="mb-3">
-                            <div class="text-muted small">Cliente:</div>
-                            <div class="fw-bold fs-5">Distribuidora Central S.A.</div>
+                            <div class="text-secondary small">Cliente:</div>
+                            <div class="fw-bold fs-5 text-white">Distribuidora Central S.A.</div>
                         </div>
-                        <div class="row g-2 bg-light p-3 rounded-3 mb-3">
-                            <div class="col-6">
-                                <div class="text-muted small">Cuota Mensual:</div>
-                                <div class="fw-bold text-primary fs-5">$150.00 USD</div>
-                            </div>
-                            <div class="col-6">
-                                <div class="text-muted small">Total Lempiras:</div>
-                                <div class="fw-bold text-success fs-5">L 3,712.50 HNL</div>
+                        <div class="row g-2 p-3 rounded-3 mb-3 border border-secondary border-opacity-25" style="background-color: #1e293b;">
+                            <div class="col-12">
+                                <div class="text-secondary small">Total del Recibo en Lempiras:</div>
+                                <div class="fw-bold text-info fs-4">L 3,712.50 HNL</div>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center text-muted small">
-                            <span><i class="bi bi-calendar-check me-1"></i> Cobro: Día 5 de cada mes</span>
-                            <span class="text-primary fw-semibold"><i class="bi bi-file-earmark-pdf"></i> PDF Listo</span>
+                        <div class="d-flex justify-content-between align-items-center text-secondary small">
+                            <span><i class="bi bi-calendar-check me-1"></i> Cobro: 1 o 2 pagos al mes</span>
+                            <span class="text-info fw-semibold"><i class="bi bi-file-earmark-pdf"></i> PDF Listo</span>
                         </div>
                     </div>
                 </div>
@@ -82,74 +78,74 @@
     </header>
 
     <!-- Features Section -->
-    <section id="features" class="py-5">
+    <section id="features" class="py-5" style="background-color: #0b1120;">
         <div class="container py-4">
             <div class="text-center mb-5">
-                <h2 class="fw-bold text-primary">Todo lo que necesitas en una sola plataforma</h2>
-                <p class="text-muted lead">Diseñado específicamente para el control ágil de recibos, cobranzas y flujo de caja.</p>
+                <h2 class="fw-bold text-info">Todo lo que necesitas en una sola plataforma</h2>
+                <p class="text-secondary lead">Diseñado específicamente para el control ágil de recibos, cobranzas, ingresos extra y flujo de caja.</p>
             </div>
 
             <div class="row g-4">
                 <!-- Card 1 -->
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4">
+                    <div class="card h-100 border border-secondary border-opacity-25 shadow-sm rounded-4 p-4" style="background-color: #111827;">
                         <div class="stat-icon bg-primary bg-opacity-10 text-primary mb-3">
                             <i class="bi bi-receipt"></i>
                         </div>
-                        <h4 class="fw-bold fs-5">Recibos Correlativos 0001</h4>
-                        <p class="text-muted">
-                            Generación automática de números de recibo (ej: 0001, 0002). Puedes definir el número inicial y prefijo personalizado por cada empresa.
+                        <h4 class="fw-bold fs-5 text-white">Recibos Correlativos 0001</h4>
+                        <p class="text-secondary mb-0">
+                            Generación automática de números de recibo (ej: 0001, 0002) con total en Lempiras y registro de comprobantes de pago.
                         </p>
                     </div>
                 </div>
 
                 <!-- Card 2 -->
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4">
+                    <div class="card h-100 border border-secondary border-opacity-25 shadow-sm rounded-4 p-4" style="background-color: #111827;">
                         <div class="stat-icon bg-success bg-opacity-10 text-success mb-3">
                             <i class="bi bi-currency-dollar"></i>
                         </div>
-                        <h4 class="fw-bold fs-5">Dólares vs Lempiras (USD/HNL)</h4>
-                        <p class="text-muted">
-                            Registra el valor mensual del cliente en dólares. Al emitir el recibo, el sistema calcula automáticamente la equivalencia en Lempiras con la tasa del día o manual.
+                        <h4 class="fw-bold fs-5 text-white">Dólares vs Lempiras (USD/HNL)</h4>
+                        <p class="text-secondary mb-0">
+                            Registra cuotas mensuales en 1 o 2 pagos en dólares y calcula automáticamente la equivalencia en Lempiras con la tasa diaria o manual.
                         </p>
                     </div>
                 </div>
 
                 <!-- Card 3 -->
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4">
+                    <div class="card h-100 border border-secondary border-opacity-25 shadow-sm rounded-4 p-4" style="background-color: #111827;">
                         <div class="stat-icon bg-warning bg-opacity-10 text-warning mb-3">
                             <i class="bi bi-bell"></i>
                         </div>
-                        <h4 class="fw-bold fs-5">Recordatorios de Cobro</h4>
-                        <p class="text-muted">
-                            Detecta clientes vencidos, próximos a vencer o pendientes del mes actual. Envía recordatorios por WhatsApp con un solo clic.
+                        <h4 class="fw-bold fs-5 text-white">Recordatorios de Cobro</h4>
+                        <p class="text-secondary mb-0">
+                            Detecta clientes vencidos, próximos a vencer o con saldos parciales del mes actual. Envía recordatorios por WhatsApp con un clic.
                         </p>
                     </div>
                 </div>
 
                 <!-- Card 4 -->
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4">
+                    <div class="card h-100 border border-secondary border-opacity-25 shadow-sm rounded-4 p-4" style="background-color: #111827;">
                         <div class="stat-icon bg-danger bg-opacity-10 text-danger mb-3">
                             <i class="bi bi-wallet2"></i>
                         </div>
-                        <h4 class="fw-bold fs-5">Bitácora de Gastos vs Ingresos</h4>
-                        <p class="text-muted">
-                            Lleva el control de gastos de la empresa y gastos personales. Conoce tu balance operativo y margen neto real mes a mes.
+                        <h4 class="fw-bold fs-5 text-white">Bitácora de Gastos e Ingresos Extra</h4>
+                        <p class="text-secondary mb-0">
+                            Registra ingresos de empresas externas no registradas, montos extra fuera del cobro mensual, gastos de empresa y gastos personales.
                         </p>
                     </div>
                 </div>
 
                 <!-- Card 5 -->
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4">
+                    <div class="card h-100 border border-secondary border-opacity-25 shadow-sm rounded-4 p-4" style="background-color: #111827;">
                         <div class="stat-icon bg-info bg-opacity-10 text-info mb-3">
                             <i class="bi bi-file-earmark-pdf"></i>
                         </div>
-                        <h4 class="fw-bold fs-5">Reportes en Dashboard y PDF</h4>
-                        <p class="text-muted">
+                        <h4 class="fw-bold fs-5 text-white">Reportes en Dashboard y PDF</h4>
+                        <p class="text-secondary mb-0">
                             Revisa qué clientes pagaron en cada mes y quiénes están pendientes. Exporta recibos individuales y reportes mensuales directamente en PDF.
                         </p>
                     </div>
@@ -157,12 +153,12 @@
 
                 <!-- Card 6 -->
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 border-0 shadow-sm rounded-4 p-4">
-                        <div class="stat-icon bg-secondary bg-opacity-10 text-dark mb-3">
+                    <div class="card h-100 border border-secondary border-opacity-25 shadow-sm rounded-4 p-4" style="background-color: #111827;">
+                        <div class="stat-icon bg-secondary bg-opacity-25 text-light mb-3">
                             <i class="bi bi-buildings"></i>
                         </div>
-                        <h4 class="fw-bold fs-5">Multi-Empresa & Multi-Usuario</h4>
-                        <p class="text-muted">
+                        <h4 class="fw-bold fs-5 text-white">Multi-Empresa & Multi-Usuario</h4>
+                        <p class="text-secondary mb-0">
                             Crea varias empresas y asigna colaboradores con diferentes permisos. Cada empresa maneja sus clientes, recibos y bitácora de forma aislada.
                         </p>
                     </div>
@@ -172,7 +168,7 @@
     </section>
 
     <!-- Footer -->
-    <footer class="mt-auto bg-dark text-light py-4 border-top border-secondary">
+    <footer class="mt-auto text-light py-4 border-top border-secondary border-opacity-25" style="background-color: #070b14;">
         <div class="container text-center">
             <p class="mb-1 fw-semibold">RecipeApp &copy; 2026 - Gestión de Recibos, Cobranzas y Bitácora Financiera</p>
             <p class="text-secondary small mb-0">Sistema adaptable para dispositivos móviles y computadoras de escritorio.</p>

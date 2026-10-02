@@ -51,40 +51,135 @@
             </div>
 
             <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
-                <i class="bi bi-receipt me-2"></i>Formato de Numeración de Recibos y Moneda
+                <i class="bi bi-receipt me-2"></i>Formato y Correlativo de Recibos
             </h5>
-            <div class="alert alert-info small">
-                <i class="bi bi-info-circle me-1"></i>
+            <div class="alert alert-secondary bg-dark border-secondary p-3 mb-4 rounded-3 text-light small">
+                <i class="bi bi-info-circle text-info me-1"></i>
                 Puedes definir en qué número comienzan tus recibos. Por ejemplo, si defines <strong>1</strong> con <strong>4 dígitos</strong>, el primer recibo será <strong>0001</strong>. Si defines <strong>55</strong>, empezará en <strong>0055</strong>.
             </div>
             <div class="row g-3 mb-4">
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Número en el que inicia (ej: 1 para 0001) *</label>
+                    <label class="form-label fw-semibold">Número en el que inicia *</label>
                     {{ form.receipt_start_number }}
-                    <div class="form-text">Correlativo base desde donde iniciará la numeración.</div>
+                    <div class="form-text small">Correlativo base desde donde iniciará la numeración.</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Cantidad de dígitos (relleno con ceros) *</label>
                     {{ form.receipt_padding }}
-                    <div class="form-text">Por defecto 4 dígitos (genera formato 0001).</div>
+                    <div class="form-text small">Por defecto 4 dígitos (genera formato 0001).</div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold">Prefijo Opcional</label>
                     {{ form.receipt_prefix }}
-                    <div class="form-text">Déjalo vacío para <code>0001</code> o escribe <code>REC-</code> para <code>REC-0001</code>.</div>
+                    <div class="form-text small">Déjalo vacío para <code>0001</code> o escribe <code>REC-</code> para <code>REC-0001</code>.</div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Tasa de Cambio Predeterminada (USD a HNL)</label>
-                    {{ form.default_exchange_rate }}
-                </div>
-                <div class="col-md-8">
+                <div class="col-12">
                     <label class="form-label fw-semibold">Nota al pie del recibo</label>
                     {{ form.receipt_footer_note }}
                 </div>
+            </div>
+
+            <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-currency-exchange me-2"></i>Configuración de Tasa de Cambio y API de Divisas (USD / HNL)
+            </h5>
+            <div class="alert alert-secondary bg-dark border-secondary p-3 mb-4 rounded-3 text-light">
+                <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-info-circle-fill text-info fs-5 mt-1"></i>
+                    <div>
+                        <strong class="text-info">Tarea Programada 1 vez al día (1:00 AM - 4:00 AM):</strong>
+                        <p class="mb-1 small">
+                            La aplicación <strong>NO consulta la API al cargar páginas</strong> para garantizar máxima velocidad. En su lugar, una tarea programada se ejecuta automáticamente 1 vez al día a las <strong>02:30 AM</strong>, consulta el endpoint configurado y almacena la tasa del día en el campo correspondiente. Esa tasa almacenada es la que se visualiza en la página de inicio y en todo el sistema.
+                        </p>
+                        <p class="mb-0 small text-warning">
+                            <i class="bi bi-shield-check me-1"></i><strong>Flexibilidad manual en cada recibo:</strong> Al emitir recibos o registrar gastos/ingresos, el campo de tasa de cambio <strong>siempre permanece editable</strong> para que puedas ingresar o ajustar manualmente la tasa exacta de ese momento si así lo prefieres.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-success">
+                        <i class="bi bi-database-check me-1"></i>Tasa de Cambio Actual Almacenada (del Día)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-success bg-opacity-25 text-success fw-bold">L</span>
+                        {{ form.current_exchange_rate }}
+                    </div>
+                    <div class="form-text small">
+                        Tasa guardada que se muestra en el sistema y en la página pública de inicio.
+                        {% if company.exchange_rate_updated_at %}
+                            <br><span class="text-info"><i class="bi bi-clock-history me-1"></i>Última actualización: <strong>{{ company.exchange_rate_updated_at|date:"d/m/Y h:i A" }}</strong></span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Tasa Predeterminada de Respaldo / Fija (USD a HNL) *</label>
+                    <div class="input-group">
+                        <span class="input-group-text">L</span>
+                        {{ form.default_exchange_rate }}
+                    </div>
+                    <div class="form-text small">Tasa de reserva utilizada si falla la API o si se desactiva la tarea automática.</div>
+                </div>
+
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">URL del Endpoint de la API</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                        {{ form.exchange_rate_api_url }}
+                    </div>
+                    <div class="form-text small">
+                        Ej: <code>https://open.er-api.com/v6/latest/USD</code> o <code>https://v6.exchangerate-api.com/v6/{api_key}/latest/USD</code>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">API Key del Servicio (Opcional)</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-key"></i></span>
+                        {{ form.exchange_rate_api_key }}
+                    </div>
+                    <div class="form-text small">Clave si tu proveedor privado la requiere.</div>
+                </div>
+
                 <div class="col-12">
-                    <div class="form-check">
+                    <div class="form-check mt-1">
+                        {{ form.exchange_rate_auto_update }}
+                        <label class="form-check-label fw-semibold" for="id_exchange_rate_auto_update">
+                            Actualizar automáticamente 1 vez al día (Tarea programada entre 1:00 AM y 4:00 AM)
+                        </label>
+                        <div class="form-text small">Si se desmarca, el sistema usará siempre la tasa fija predeterminada.</div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción para la API -->
+                <div class="col-12 mt-2 d-flex flex-wrap align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm" id="btnTestApi">
+                        <i class="bi bi-lightning-charge me-1"></i> Probar Conexión con la API
+                    </button>
+                    <span id="testApiSpinner" class="spinner-border spinner-border-sm text-info d-none" role="status"></span>
+                    <div id="testApiResult" class="w-100 mt-2" style="display: none;"></div>
+                </div>
+                </div>
+            </div>
+
+            <h5 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                <i class="bi bi-piggy-bank me-2"></i>Saldos Iniciales de Caja (Opcional)
+            </h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Saldo Inicial en Lempiras (L HNL)</label>
+                    {{ form.initial_balance_hnl }}
+                    <div class="form-text small">Fondo con el que inició la empresa para el cálculo de balances y arrastre mensual.</div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Saldo Inicial en Dólares ($ USD)</label>
+                    {{ form.initial_balance_usd }}
+                </div>
+                <div class="col-12">
+                    <div class="form-check mt-2">
                         {{ form.is_active }}
-                        <label class="form-check-label fw-semibold">Empresa Activa</label>
+                        <label class="form-check-label fw-semibold" for="id_is_active">Empresa Activa</label>
                     </div>
                 </div>
             </div>
@@ -98,4 +193,55 @@
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnTest = document.getElementById('btnTestApi');
+    const spinner = document.getElementById('testApiSpinner');
+    const resultDiv = document.getElementById('testApiResult');
+    const urlInput = document.getElementById('id_exchange_rate_api_url');
+    const keyInput = document.getElementById('id_exchange_rate_api_key');
+
+    if (btnTest) {
+        btnTest.addEventListener('click', function() {
+            spinner.classList.remove('d-none');
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+            btnTest.disabled = true;
+
+            const urlVal = urlInput ? urlInput.value : '';
+            const keyVal = keyInput ? keyInput.value : '';
+
+            const formData = new FormData();
+            formData.append('api_url', urlVal);
+            formData.append('api_key', keyVal);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch("{% url 'test_exchange_rate_api' %}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                spinner.classList.add('d-none');
+                btnTest.disabled = false;
+                resultDiv.style.display = 'block';
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="alert alert-success py-2 px-3 small mb-0"><i class="bi bi-check-circle-fill me-2"></i>${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger py-2 px-3 small mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>${data.error}</div>`;
+                }
+            })
+            .catch(err => {
+                spinner.classList.add('d-none');
+                btnTest.disabled = false;
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<div class="alert alert-danger py-2 px-3 small mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Error al consultar: ${err}</div>`;
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
